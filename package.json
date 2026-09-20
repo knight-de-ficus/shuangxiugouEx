@@ -1,0 +1,39 @@
+{
+  "name": "shuangxiugou-cloudflare-fullstack",
+  "version": "0.1.0",
+  "license": "GPL-3.0-only",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "deploy": "npm run build && wrangler deploy",
+    "cf:login": "wrangler login",
+    "db:create": "wrangler d1 create shuangxiugou-db",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
+    "db:list": "wrangler d1 migrations list DB --local",
+    "r2:create": "wrangler r2 bucket create shuangxiugou-files",
+    "cf:types": "wrangler types"
+  },
+  "dependencies": {
+    "hono": "4.13.8",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "1.56.0",
+    "@cloudflare/workers-types": "5.20260920.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "typescript": "7.0.2",
+    "vite": "8.3.0",
+    "wrangler": "4.135.0"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  }
+}
