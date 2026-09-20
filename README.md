@@ -1,16 +1,19 @@
-# Cloudflare Full Stack Environment
+# 双休购 Cloudflare 全栈版
 
-一个部署到单个 Cloudflare Worker 的最小全栈模板：React/Vite 前端由 Workers Static Assets 托管，Hono 提供 `/api/*`，D1 保存结构化数据，R2 保存文件。项目不使用 Cloudflare Pages、VPS、Docker 或独立 Node.js 服务器。
+双休购已迁移为可部署到单个 Cloudflare Worker 的完整应用：React/Vite 前端由 Workers Static Assets 托管，Hono 提供 `/api/*`，D1 保存社区与互动数据，R2 提供对象存储验证接口。项目不使用 Cloudflare Pages、VPS、Docker 或独立 Node.js 服务器。
+
+厂商目录来自同级 `shuangxiu-index` 项目，共收录 1187 条厂商数据（100 条人工整理数据和 1087 条生成数据）。提交爆料、推荐投票、员工情况、消费承诺和讨论区均已接入 D1，不再依赖浏览器内的临时状态。
 
 ## 架构与目录
 
 ```text
 src/
-├── frontend/          React 页面、组件和同源 API 客户端
+├── frontend/          双休购 React 页面、组件和同源 API 客户端
+│   └── vendor-data/   从 shuangxiu-index 复制的厂商与行业资料
 └── worker/
     ├── db/            参数化 D1 查询
     ├── middleware/    API 安全响应头
-    ├── routes/        health、items、files 路由
+    ├── routes/        健康检查、社区、互动、items、files 路由
     ├── services/      验证与统一错误
     ├── types/         Worker bindings 与数据类型
     └── index.ts       Hono Worker 入口
@@ -19,7 +22,7 @@ public/                Static Assets 与安全头规则
 wrangler.jsonc         Worker、D1、R2、Static Assets 配置
 ```
 
-`/api/*` 优先交给 Worker；其他请求由 Static Assets 处理，并启用 SPA fallback。前端只请求相对地址 `/api/health`，因此本地、`workers.dev` 和自定义域名使用同一套代码。
+`/api/*` 优先交给 Worker；其他请求由 Static Assets 处理，并启用 SPA fallback。前端只请求 `/api/*` 相对地址，因此本地、`workers.dev` 和自定义域名使用同一套代码。
 
 ## 环境要求
 
@@ -65,7 +68,7 @@ npm run db:migrate:local
 npm run dev
 ```
 
-Vite 会同时运行 React 和 Cloudflare Worker runtime，并提供本地 D1/R2 bindings。打开终端显示的本地地址；主页会自动调用 `/api/health`。
+Vite 会同时运行 React 和 Cloudflare Worker runtime，并提供本地 D1/R2 bindings。打开终端显示的本地地址即可浏览厂商目录、提交内容并测试讨论区。
 
 常用 API 验证示例：
 
@@ -80,6 +83,19 @@ curl -X PUT http://localhost:5173/api/files/hello.txt -H "Content-Type: text/pla
 curl http://localhost:5173/api/files/hello.txt
 curl -X DELETE http://localhost:5173/api/files/hello.txt
 ```
+
+业务 API：
+
+- `GET /api/stats`：消费承诺、推荐票和员工反馈聚合数据。
+- `POST /api/submissions`：提交厂商爆料或资料补充。
+- `GET|POST /api/community/posts`：读取或创建讨论帖。
+- `POST /api/community/posts/:id/replies`：回复讨论帖。
+- `POST /api/community/posts/:id/vote`：为讨论帖投票，同一访客不能重复投票。
+- `POST /api/brands/:id/votes`：推荐或反对厂商，同一访客对同一厂商不能重复投票。
+- `POST /api/brands/:id/employee-reports`：提交员工工作情况。
+- `POST /api/brands/:id/purchase-pledges`：记录消费承诺金额。
+
+匿名访客标识由浏览器生成并在服务端做 SHA-256 哈希后使用。它用于基础重复投票控制，不等同于强身份认证；在公开生产环境中，仍建议按实际流量增加 Cloudflare Rate Limiting、Turnstile 和内容审核。
 
 文件示例接口限制单个请求为 5 MiB，key 限制为 1–128 个安全字符（字母、数字、点、下划线、连字符），且拒绝 `..`。这是基础验证接口，不是公开匿名上传系统；生产业务应再添加认证、速率限制、配额和内容策略。
 
@@ -109,7 +125,7 @@ curl https://<worker-name>.<account-subdomain>.workers.dev/api/health
 curl https://<worker-name>.<account-subdomain>.workers.dev/api/items
 ```
 
-浏览器打开根地址，应显示前端、Backend API 和 D1 Database 均为 `OK`。R2 可使用上面的文件接口换成生产域名验证。
+浏览器打开根地址，应显示双休购界面和 1187 个厂商条目。可在讨论区发帖并刷新页面验证持久化，也可使用上面的文件接口换成生产域名验证 R2。
 
 ## GitHub → Cloudflare Workers 自动部署
 
@@ -143,6 +159,8 @@ npx wrangler secret put SECRET_NAME
 - 同源架构不启用 CORS，更不会设置 `Access-Control-Allow-Origin: *`。
 - API 和静态资源都设置安全响应头；Vite 指纹资源使用长期 immutable cache。
 - `GET /api/items` 最多返回最近 100 条记录，避免无界读取。
+- 文本字段均做长度和类型校验，社区分页有固定上限；数据库写入均使用参数化语句。
+- 客户端仅显示匿名昵称，但公开提交内容仍需在正式运营前建立审核与滥用防护流程。
 - R2 bucket 保持私有，只能经 Worker binding 访问。
 
 ## 日常 migration
