@@ -211,7 +211,7 @@ export const EmployeeVoteModal: React.FC<EmployeeVoteModalProps> = ({
           <div className="p-3 bg-slate-100/80 rounded-xl border border-slate-200/80 flex items-start gap-2 text-[11px] text-slate-500">
             <Lock className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
             <span>
-              反馈将保存到 D1 并以聚合结果展示。匿名提交不等于绝对不可识别，请避免填写个人敏感信息。
+              反馈将先进入 D1 审批队列，只有管理员批准后才会进入公开聚合结果。匿名提交不等于绝对不可识别，请避免填写个人敏感信息。
             </span>
           </div>
 
@@ -232,7 +232,7 @@ export const EmployeeVoteModal: React.FC<EmployeeVoteModalProps> = ({
               className="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold transition shadow-lg shadow-slate-900/20 flex items-center gap-1.5"
             >
               <Sparkles className="w-4 h-4 text-red-400" />
-              <span>{isSubmitting ? '入库公证中...' : '提交我的真实工时票'}</span>
+              <span>{isSubmitting ? '提交审核中...' : '提交匿名反馈审核'}</span>
             </button>
           </div>
         </form>

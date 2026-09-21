@@ -1,4 +1,6 @@
 # Copy this file to .dev.vars and replace both placeholders with independent,
 # randomly generated values of at least 32 characters. Never commit .dev.vars.
 ADMIN_API_TOKEN="replace-with-a-long-random-local-admin-token"
+MODERATION_ADMIN_TOKEN="replace-with-a-separate-long-random-moderation-token"
+ADMIN_ROUTE_KEY="replace-with-a-separate-high-entropy-url-safe-route-key"
 ABUSE_HASH_SALT="replace-with-an-independent-long-random-salt"

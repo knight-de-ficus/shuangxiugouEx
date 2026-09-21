@@ -6,7 +6,8 @@ import {
   requireRecord,
   stringField,
 } from "../services/community-validation";
-import { enforceRateLimit, networkVisitorHash } from "../services/security-controls";
+import { enforceRateLimit } from "../services/security-controls";
+import { enqueueModeration } from "../services/moderation";
 import type { AppEnv } from "../types/bindings";
 
 type PostRow = {
@@ -88,7 +89,6 @@ communityRoutes.get("/posts", async (context) => {
 communityRoutes.post("/posts", async (context) => {
   await enforceRateLimit(context, "community-post", 5, 3600);
   const body = requireRecord(await parseJsonBody(context.req.raw));
-  const id = crypto.randomUUID();
   const category = enumField(body, "category", ["avoid_trap", "recommend_wlb", "ask_intel"] as const);
   const authorRole = stringField(body, "authorRole", 0, 60, true);
   const targetCompany = stringField(body, "targetCompany", 1, 120);
@@ -97,13 +97,14 @@ communityRoutes.post("/posts", async (context) => {
   const evidenceBadge = stringField(body, "evidenceBadge", 0, 120, true);
   const authorAlias = `匿名打工人 #${crypto.getRandomValues(new Uint16Array(1))[0].toString().padStart(5, "0").slice(-4)}`;
 
-  await context.env.DB.prepare(
-    "INSERT INTO community_posts (id, author_alias, author_role, target_company, category, title, content, evidence_badge) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-  )
-    .bind(id, authorAlias, authorRole, targetCompany, category, title, content, evidenceBadge)
-    .run();
+  const submission = await enqueueModeration(
+    context,
+    "community_post",
+    `${category}:${targetCompany.toLocaleLowerCase("zh-CN")}`,
+    { authorAlias, authorRole, targetCompany, category, title, content, evidenceBadge },
+  );
 
-  return context.json({ post: { id, authorAlias } }, 201);
+  return context.json({ submission }, 202);
 });
 
 communityRoutes.post("/posts/:id/replies", async (context) => {
@@ -119,15 +120,15 @@ communityRoutes.post("/posts/:id/replies", async (context) => {
 
   const body = requireRecord(await parseJsonBody(context.req.raw));
   const content = stringField(body, "content", 1, 1000);
-  const id = crypto.randomUUID();
   const authorAlias = "匿名热心打工人";
-  await context.env.DB.prepare(
-    "INSERT INTO community_replies (id, post_id, author_alias, content) VALUES (?, ?, ?, ?)",
-  )
-    .bind(id, postId, authorAlias, content)
-    .run();
+  const submission = await enqueueModeration(
+    context,
+    "community_reply",
+    postId,
+    { postId, authorAlias, content },
+  );
 
-  return context.json({ reply: { id, author: authorAlias } }, 201);
+  return context.json({ submission }, 202);
 });
 
 communityRoutes.post("/posts/:id/vote", async (context) => {
@@ -136,21 +137,9 @@ communityRoutes.post("/posts/:id/vote", async (context) => {
     throw new ApiError(400, "bad_request", "Post id is invalid.");
   }
   await enforceRateLimit(context, "community-vote", 30, 3600);
-  const visitorHash = await networkVisitorHash(context);
-  const [insertResult] = await context.env.DB.batch([
-    context.env.DB.prepare(
-      "INSERT INTO community_post_votes (post_id, visitor_hash) SELECT ?, ? WHERE EXISTS (SELECT 1 FROM community_posts WHERE id = ?) ON CONFLICT DO NOTHING",
-    ).bind(postId, visitorHash, postId),
-    context.env.DB.prepare(
-      "UPDATE community_posts SET upvotes = upvotes + 1 WHERE id = ? AND changes() = 1",
-    ).bind(postId),
-  ]);
-  if (insertResult.meta.changes === 0) {
-    if (!(await context.env.DB.prepare("SELECT id FROM community_posts WHERE id = ?").bind(postId).first())) {
-      throw new ApiError(404, "not_found", "Post not found.");
-    }
-    throw new ApiError(409, "conflict", "This visitor already voted for the post.");
+  if (!(await context.env.DB.prepare("SELECT id FROM community_posts WHERE id = ?").bind(postId).first())) {
+    throw new ApiError(404, "not_found", "Post not found.");
   }
-  const post = await context.env.DB.prepare("SELECT upvotes FROM community_posts WHERE id = ?").bind(postId).first<{ upvotes: number }>();
-  return context.json({ upvotes: post?.upvotes ?? 0 });
+  const submission = await enqueueModeration(context, "community_vote", postId, { postId });
+  return context.json({ submission }, 202);
 });

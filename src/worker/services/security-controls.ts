@@ -4,7 +4,7 @@ import type { AppEnv } from "../types/bindings";
 
 const encoder = new TextEncoder();
 
-async function sha256(value: string): Promise<string> {
+export async function sha256(value: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", encoder.encode(value));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
@@ -14,6 +14,17 @@ function requiredSecret(value: string | undefined, name: string): string {
     throw new ApiError(503, "service_unavailable", `${name} is not configured.`);
   }
   return value;
+}
+
+function constantTimeEqual(left: string, right: string): boolean {
+  const leftBytes = encoder.encode(left);
+  const rightBytes = encoder.encode(right);
+  const length = Math.max(leftBytes.length, rightBytes.length);
+  let difference = leftBytes.length ^ rightBytes.length;
+  for (let index = 0; index < length; index += 1) {
+    difference |= (leftBytes[index] ?? 0) ^ (rightBytes[index] ?? 0);
+  }
+  return difference === 0;
 }
 
 function requestIp(context: Context<AppEnv>): string {
@@ -60,18 +71,52 @@ export async function enforceRateLimit(
   }
 }
 
-export async function requireAdmin(context: Context<AppEnv>): Promise<void> {
-  const expected = requiredSecret(context.env.ADMIN_API_TOKEN, "ADMIN_API_TOKEN");
+async function requireBearer(
+  context: Context<AppEnv>,
+  expectedValue: string | undefined,
+  secretName: string,
+  realm: string,
+): Promise<void> {
+  const expected = requiredSecret(expectedValue, secretName);
   const authorization = context.req.header("authorization") ?? "";
   const supplied = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
   if (!supplied) {
-    context.header("WWW-Authenticate", 'Bearer realm="shuangxiugou-admin"');
+    context.header("WWW-Authenticate", `Bearer realm="${realm}"`);
     throw new ApiError(401, "unauthorized", "Administrator authorization is required.");
   }
   const [expectedHash, suppliedHash] = await Promise.all([sha256(expected), sha256(supplied)]);
-  if (expectedHash !== suppliedHash) {
+  if (!constantTimeEqual(expectedHash, suppliedHash)) {
     throw new ApiError(403, "forbidden", "Administrator authorization was rejected.");
   }
+}
+
+export async function requireAdmin(context: Context<AppEnv>): Promise<void> {
+  await requireBearer(context, context.env.ADMIN_API_TOKEN, "ADMIN_API_TOKEN", "shuangxiugou-admin");
+}
+
+export async function requireModerationAdmin(context: Context<AppEnv>): Promise<void> {
+  await requireBearer(
+    context,
+    context.env.MODERATION_ADMIN_TOKEN,
+    "MODERATION_ADMIN_TOKEN",
+    "shuangxiugou-moderation",
+  );
+}
+
+export async function requireAdminRoute(context: Context<AppEnv>, suppliedRouteKey: string): Promise<void> {
+  const expected = context.env.ADMIN_ROUTE_KEY;
+  if (!expected || !/^[A-Za-z0-9_-]{32,128}$/.test(expected)) {
+    throw new ApiError(404, "not_found", "API route not found.");
+  }
+  const [expectedHash, suppliedHash] = await Promise.all([sha256(expected), sha256(suppliedRouteKey)]);
+  if (!constantTimeEqual(expectedHash, suppliedHash)) {
+    throw new ApiError(404, "not_found", "API route not found.");
+  }
+}
+
+export async function adminFingerprint(context: Context<AppEnv>): Promise<string> {
+  const token = requiredSecret(context.env.MODERATION_ADMIN_TOKEN, "MODERATION_ADMIN_TOKEN");
+  return (await sha256(token)).slice(0, 16);
 }
 
 export async function ensureCompanyExists(db: D1Database, id: string): Promise<void> {

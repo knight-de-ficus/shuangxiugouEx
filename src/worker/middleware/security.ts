@@ -8,8 +8,9 @@ export const securityHeaders: MiddlewareHandler<AppEnv> = async (context, next) 
   context.header("X-Frame-Options", "DENY");
   context.header("Referrer-Policy", "no-referrer");
   context.header("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-  context.header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'");
+  if (!context.res.headers.has("Content-Security-Policy")) {
+    context.header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'");
+  }
   context.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   context.header("Cache-Control", "no-store");
 };
-

@@ -14,31 +14,27 @@ import {
   Filter,
   Clock,
   UserCheck,
-  ShoppingBag,
-  MessageSquare,
   Compass
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { INITIAL_BRANDS, CATEGORIES } from './data';
 import type { BrandItem, WlbTier } from './types';
 import { AnimatedCounter } from './components/AnimatedCounter';
 import { ReceiptModal } from './components/ReceiptModal';
 import { EmployeeVoteModal } from './components/EmployeeVoteModal';
-import { ShoppingLens } from './components/ShoppingLens';
-import { CommunityLounge } from './components/CommunityLounge';
 import { getBrandMark } from './utils/brand.js';
 import {
   getSiteStats,
+  getPublishedSubmissions,
   submitEmployeeReport,
   submitLead,
   submitPurchasePledge,
   voteForBrand,
 } from './api/client';
+import type { PublishedSubmission } from './api/client';
 
 const BRANDS_PER_PAGE = 24;
 
 export function App() {
-  const [activeMainTab, setActiveMainTab] = useState<'brands' | 'shopping' | 'community'>('brands');
   const [brands, setBrands] = useState<BrandItem[]>(INITIAL_BRANDS);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('全部');
@@ -56,6 +52,7 @@ export function App() {
   const [votingEmployeeBrand, setVotingEmployeeBrand] = useState<BrandItem | null>(null);
   const [notice, setNotice] = useState('');
   const [isSubmittingLead, setIsSubmittingLead] = useState(false);
+  const [publishedSubmissions, setPublishedSubmissions] = useState<PublishedSubmission[]>([]);
 
   const refreshStats = useCallback(async () => {
     const stats = await getSiteStats();
@@ -80,6 +77,9 @@ export function App() {
 
   useEffect(() => {
     void refreshStats().catch(() => setNotice('互动数据暂时无法加载，请稍后重试。'));
+    void getPublishedSubmissions()
+      .then((result) => setPublishedSubmissions(result.submissions))
+      .catch(() => setNotice('已审批公开线索暂时无法加载，请稍后重试。'));
   }, [refreshStats]);
 
   // 筛选过滤
@@ -107,8 +107,7 @@ export function App() {
     try {
       await voteForBrand(id, voteType);
       setUserVoteHistory((prev) => ({ ...prev, [id]: voteType }));
-      await refreshStats();
-      if (voteType === 'up') confetti({ particleCount: 35, spread: 60, origin: { y: 0.8 } });
+      setNotice('投票已提交，管理员审核通过后才会计入公开统计。');
     } catch (error) {
       setNotice(error instanceof Error ? error.message : '投票保存失败。');
     }
@@ -133,21 +132,15 @@ export function App() {
     }
   ) => {
     await submitEmployeeReport(brandId, data);
-    await refreshStats();
-    confetti({
-      particleCount: 70,
-      spread: 80,
-      origin: { y: 0.5 },
-    });
+    setNotice('匿名反馈已进入审批队列，审核通过后才会公开。');
   };
 
   const completeTicketVote = async (amount: number) => {
     if (!ticketBrand) return;
     try {
       await submitPurchasePledge(ticketBrand.id, amount);
-      await refreshStats();
       setShowTicketModal(false);
-      confetti({ particleCount: 80, spread: 90, origin: { y: 0.6 } });
+      setNotice('消费打卡已进入审批队列，审核通过后才会计入总额。');
     } catch (error) {
       setNotice(error instanceof Error ? error.message : '消费打卡保存失败。');
     }
@@ -287,17 +280,12 @@ export function App() {
         </div>
       </section>
 
-      {/* 全局三大核心场景切换 Tab */}
+      {/* 未完成的网购透镜与讨论广场同时在前端和 Worker 路由层关闭。 */}
       <div className="bg-white border-b border-slate-200/80 sticky top-16 z-30 shadow-xs">
         <div className="max-w-6xl mx-auto px-4 overflow-x-auto scrollbar-none">
           <div className="flex w-max min-w-full gap-1 sm:gap-3 py-2">
             <button
-              onClick={() => setActiveMainTab('brands')}
-              className={`flex shrink-0 items-center gap-2 py-2 px-3 sm:px-4 rounded-md text-xs sm:text-sm font-bold whitespace-nowrap transition ${
-                activeMainTab === 'brands'
-                  ? 'bg-red-50 text-red-800 border-2 border-red-500 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
-              }`}
+              className="flex shrink-0 items-center gap-2 py-2 px-3 sm:px-4 rounded-md text-xs sm:text-sm font-bold whitespace-nowrap bg-red-50 text-red-800 border-2 border-red-500 shadow-xs"
             >
               <Compass className="w-4 h-4 text-red-600" />
               <span>企业真假双休档案</span>
@@ -306,53 +294,13 @@ export function App() {
               </span>
             </button>
 
-            <button
-              onClick={() => setActiveMainTab('shopping')}
-              className={`flex shrink-0 items-center gap-2 py-2 px-3 sm:px-4 rounded-md text-xs sm:text-sm font-bold whitespace-nowrap transition ${
-                activeMainTab === 'shopping'
-                  ? 'bg-red-50 text-red-800 border-2 border-red-500 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
-              }`}
-            >
-              <ShoppingBag className="w-4 h-4 text-red-600" />
-              <span>网购透镜 · 查避雷选平替</span>
-              <span className="text-[10px] bg-rose-500 text-white font-bold px-1.5 py-0.5 rounded-full uppercase tracking-widest">
-                HOT
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveMainTab('community')}
-              className={`flex shrink-0 items-center gap-2 py-2 px-3 sm:px-4 rounded-md text-xs sm:text-sm font-bold whitespace-nowrap transition ${
-                activeMainTab === 'community'
-                  ? 'bg-red-50 text-red-800 border-2 border-red-500 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
-              }`}
-            >
-              <MessageSquare className="w-4 h-4 text-red-600" />
-              <span>打工人茶水间 · 讨论广场</span>
-              <span className="text-[10px] font-mono bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded-full">
-                交流区
-              </span>
-            </button>
           </div>
         </div>
       </div>
 
       {/* 核心内容区 */}
       <main className="max-w-6xl mx-auto px-4 py-8 flex-1 w-full space-y-6">
-        {activeMainTab === 'shopping' && (
-          <ShoppingLens
-            brands={brands}
-            onSelectBrand={(b) => setSelectedBrand(b)}
-            onOpenTicket={(b) => openTicketGenerator(b)}
-          />
-        )}
-
-        {activeMainTab === 'community' && <CommunityLounge />}
-
-        {activeMainTab === 'brands' && (
-          <>
+        <>
         <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-4">
           {/* 搜索框 */}
           <div className="relative">
@@ -413,6 +361,33 @@ export function App() {
             ))}
           </div>
         </div>
+
+        {publishedSubmissions.length > 0 && (
+          <section className="rounded-xl border border-red-200 bg-white p-4" aria-labelledby="published-submissions-title">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <h2 id="published-submissions-title" className="text-sm font-bold text-slate-900">管理员已审批公开线索</h2>
+                <p className="text-[11px] text-slate-500">仅展示已通过后台审批的用户提交；不会自动改变企业评级。</p>
+              </div>
+              <span className="rounded-full bg-red-50 px-2 py-1 text-[11px] font-bold text-red-700">{publishedSubmissions.length} 条</span>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {publishedSubmissions.slice(0, 6).map((submission) => (
+                <article key={submission.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <strong className="truncate text-slate-900">{submission.companyName}</strong>
+                    <span className="shrink-0 rounded bg-white px-1.5 py-0.5 font-semibold text-red-700">
+                      {submission.kind === 'recommend' ? '推荐' : '爆料'}
+                    </span>
+                  </div>
+                  {submission.parentCompany && <p className="mt-1 text-slate-500">主体：{submission.parentCompany}</p>}
+                  <p className="mt-2 line-clamp-3 whitespace-pre-wrap break-words text-slate-600">{submission.evidence || '未提供补充说明'}</p>
+                  <time className="mt-2 block text-[10px] text-slate-400" dateTime={submission.createdAt}>{submission.createdAt.slice(0, 10)}</time>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* 品牌列表网格 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -647,7 +622,6 @@ export function App() {
               </div>
             )}
           </>
-        )}
       </main>
 
       {/* 品牌详情与法律证据弹窗 */}
@@ -987,14 +961,12 @@ export function App() {
       <footer className="bg-white border-t border-slate-200 py-8 px-4 text-center text-xs text-slate-500 space-y-2">
         <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-800">双休购 · ShuangxiuGo</span>
-            <span>- 守护劳动法与打工人休息权</span>
+            <span className="font-bold text-slate-800">双休购 · shuangxiugouEx</span>
+            {/* <span>- 守护劳动法与打工人休息权</span> */}
           </div>
           <div className="flex items-center gap-4 text-slate-600">
             <a href="https://github.com/knight-de-ficus/shuangxiugouEx" target="_blank" rel="noreferrer" className="hover:text-red-600">GitHub 仓库</a>
             <button onClick={() => setShowContributeModal(true)} className="hover:text-red-600">提供数据</button>
-            <span className="text-slate-300">|</span>
-            <span>数据完全开源免责声明：仅作为消费参考</span>
           </div>
         </div>
       </footer>

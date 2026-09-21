@@ -246,7 +246,7 @@ export const ReceiptModal: React.FC<ReceiptCardProps> = ({
             className="w-full py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-red-600/20"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>{saving ? '保存中…' : '确认打卡并计入全网总额'}</span>
+            <span>{saving ? '提交审核中…' : '提交打卡审核'}</span>
           </button>
         </div>
       </div>

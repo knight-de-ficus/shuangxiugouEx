@@ -8,7 +8,6 @@ import {
   Send,
   PlusCircle
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import type { CommunityPost, PostCategory } from '../types';
 import {
   createCommunityPost,
@@ -53,10 +52,9 @@ export const CommunityLounge: React.FC = () => {
     if (upvotedPostIds[postId]) return;
     setError('');
     try {
-      const result = await voteForCommunityPost(postId);
-      setPosts((prev) => prev.map((post) => (post.id === postId ? { ...post, upvotes: result.upvotes } : post)));
+      await voteForCommunityPost(postId);
       setUpvotedPostIds((prev) => ({ ...prev, [postId]: true }));
-      confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 } });
+      setError('点赞已提交审核，通过后才会公开计数。');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '点赞保存失败。');
     }
@@ -69,7 +67,7 @@ export const CommunityLounge: React.FC = () => {
     try {
       await createCommunityReply(postId, replyText.trim());
       setReplyText('');
-      await reloadPosts();
+      setError('回复已提交审核，通过后才会公开。');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '回复保存失败。');
     } finally {
@@ -91,13 +89,12 @@ export const CommunityLounge: React.FC = () => {
         content: newContent,
         evidenceBadge: newBadge,
       });
-      await reloadPosts();
       setShowPostModal(false);
       setNewTitle('');
       setNewTarget('');
       setNewContent('');
       setNewBadge('');
-      confetti({ particleCount: 80, spread: 80 });
+      setError('帖子已提交审核，通过后才会公开。');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '帖子保存失败。');
     } finally {

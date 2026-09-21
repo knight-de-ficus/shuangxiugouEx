@@ -8,6 +8,7 @@ import { communityRoutes } from "./routes/community";
 import { engagementRoutes } from "./routes/engagement";
 import { statsRoutes } from "./routes/stats";
 import { submissionRoutes } from "./routes/submissions";
+import { adminRoutes } from "./routes/admin";
 import type { AppEnv } from "./types/bindings";
 
 const app = new Hono<AppEnv>();
@@ -16,6 +17,10 @@ app.use("/api/*", securityHeaders);
 app.route("/api/health", healthRoutes);
 app.route("/api/items", itemRoutes);
 app.route("/api/files", fileRoutes);
+app.route("/api/ops", adminRoutes);
+app.all("/api/community/*", (context) => {
+  return context.json(errorBody("not_found", "API route not found."), 404);
+});
 app.route("/api/community", communityRoutes);
 app.route("/api", engagementRoutes);
 app.route("/api/stats", statsRoutes);

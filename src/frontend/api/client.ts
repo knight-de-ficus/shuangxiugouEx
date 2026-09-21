@@ -26,10 +26,25 @@ export interface SiteStats {
   employeeStats: Record<string, EmployeeVoteStats>;
 }
 
+export interface PendingSubmission {
+  id: string;
+  status: 'pending';
+}
+
+export interface PublishedSubmission {
+  id: string;
+  kind: 'recommend' | 'report';
+  companyName: string;
+  parentCompany: string;
+  workPolicy: 'strict_double' | 'alternate' | 'single' | 'unknown';
+  evidence: string;
+  createdAt: string;
+}
+
 export const getSiteStats = () => requestJson<SiteStats>('/api/stats');
 
 export const voteForBrand = (companyId: string, voteType: 'up' | 'down') =>
-  requestJson<{ recorded: true }>(`/api/brands/${encodeURIComponent(companyId)}/votes`, {
+  requestJson<{ submission: PendingSubmission }>(`/api/brands/${encodeURIComponent(companyId)}/votes`, {
     method: 'POST',
     body: JSON.stringify({ voteType }),
   });
@@ -38,13 +53,13 @@ export const submitEmployeeReport = (
   companyId: string,
   input: { role: string; weekendRating: number; offWorkTime: string; statutoryPay: boolean; comment: string },
 ) =>
-  requestJson<{ report: { id: string } }>(`/api/brands/${encodeURIComponent(companyId)}/employee-reports`, {
+  requestJson<{ submission: PendingSubmission }>(`/api/brands/${encodeURIComponent(companyId)}/employee-reports`, {
     method: 'POST',
     body: JSON.stringify(input),
   });
 
 export const submitPurchasePledge = (companyId: string, amount: number) =>
-  requestJson<{ pledge: { id: string } }>(`/api/brands/${encodeURIComponent(companyId)}/purchase-pledges`, {
+  requestJson<{ submission: PendingSubmission }>(`/api/brands/${encodeURIComponent(companyId)}/purchase-pledges`, {
     method: 'POST',
     body: JSON.stringify({ amountCents: Math.round(amount * 100) }),
   });
@@ -56,10 +71,13 @@ export const submitLead = (input: {
   workPolicy: 'strict_double' | 'alternate' | 'single' | 'unknown';
   evidence: string;
 }) =>
-  requestJson<{ submission: { id: string; status: 'pending' } }>('/api/submissions', {
+  requestJson<{ submission: PendingSubmission }>('/api/submissions', {
     method: 'POST',
     body: JSON.stringify(input),
   });
+
+export const getPublishedSubmissions = () =>
+  requestJson<{ submissions: PublishedSubmission[] }>('/api/submissions');
 
 export const listCommunityPosts = (category: 'all' | PostCategory = 'all') =>
   requestJson<{ posts: CommunityPost[] }>(
@@ -74,18 +92,18 @@ export const createCommunityPost = (input: {
   content: string;
   evidenceBadge: string;
 }) =>
-  requestJson<{ post: { id: string; authorAlias: string } }>('/api/community/posts', {
+  requestJson<{ submission: PendingSubmission }>('/api/community/posts', {
     method: 'POST',
     body: JSON.stringify(input),
   });
 
 export const createCommunityReply = (postId: string, content: string) =>
-  requestJson<{ reply: { id: string; author: string } }>(
+  requestJson<{ submission: PendingSubmission }>(
     `/api/community/posts/${encodeURIComponent(postId)}/replies`,
     { method: 'POST', body: JSON.stringify({ content }) },
   );
 
 export const voteForCommunityPost = (postId: string) =>
-  requestJson<{ upvotes: number }>(`/api/community/posts/${encodeURIComponent(postId)}/vote`, {
+  requestJson<{ submission: PendingSubmission }>(`/api/community/posts/${encodeURIComponent(postId)}/vote`, {
     method: 'POST',
   });
