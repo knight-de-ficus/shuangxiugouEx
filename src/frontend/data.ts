@@ -4,12 +4,56 @@ import { mergeProfile } from './vendor-data/data/profiles';
 import type { Company, RestPatternId } from './vendor-data/types';
 import type { AuditStatus, BrandItem, OvertimeComp, WeekendPolicy, WlbTier } from './types';
 
-function tierFor(company: Company): WlbTier {
-  if (company.restPattern === 'single') return 'C';
-  if (company.restPattern === 'short' && company.evidence !== 'C') return 'S';
-  if (company.weeklyRestDays === null || company.weeklyHours === null) return 'B';
-  if (company.restPattern === 'bigsmall' || company.restPattern === 'shift') return 'B';
-  return 'A';
+function tierAssessment(company: Company): { tier: WlbTier; score: number | null; reason: string } {
+  if (company.weeklyRestDays === null && company.weeklyHours === null) {
+    return { tier: 'O', score: null, reason: '缺少可量化的周休天数与周工时数据' };
+  }
+
+  let score = 0;
+  const reasons: string[] = [];
+
+  if (company.weeklyRestDays !== null) {
+    if (company.weeklyRestDays >= 3) score += 30;
+    else if (company.weeklyRestDays >= 2) score += 25;
+    else if (company.weeklyRestDays >= 1.5) score += 12;
+    else if (company.weeklyRestDays >= 1) score += 0;
+    else score -= 15;
+    reasons.push(`周休 ${company.weeklyRestDays} 天`);
+  } else {
+    reasons.push('周休天数未披露');
+  }
+
+  if (company.weeklyHours !== null) {
+    if (company.weeklyHours <= 32) score += 30;
+    else if (company.weeklyHours <= 36) score += 27;
+    else if (company.weeklyHours <= 40) score += 23;
+    else if (company.weeklyHours <= 44) score += 8;
+    else if (company.weeklyHours <= 48) score -= 5;
+    else score -= 20;
+    reasons.push(`周工时 ${company.weeklyHours} 小时`);
+  } else {
+    reasons.push('周工时未披露');
+  }
+
+  const patternScore: Record<RestPatternId, number> = {
+    short: 20,
+    standard: 15,
+    flex: 10,
+    restrict: 5,
+    shift: 5,
+    bigsmall: -15,
+    single: -25,
+  };
+  const evidenceScore = { A: 20, B: 10, C: -10 }[company.evidence];
+  score += patternScore[company.restPattern] + evidenceScore + Math.min(company.sources.length * 2, 5);
+  score = Math.max(0, Math.min(100, score));
+
+  const tier: WlbTier = score >= 85 ? 'S' : score >= 65 ? 'A' : score >= 35 ? 'B' : 'C';
+  return {
+    tier,
+    score,
+    reason: `${reasons.join(' · ')} · ${company.evidence} 级证据`,
+  };
 }
 
 function weekendPolicyFor(pattern: RestPatternId): WeekendPolicy {
@@ -48,13 +92,16 @@ function auditStatusFor(company: Company): AuditStatus {
 
 function toBrand(company: Company): BrandItem {
   const overtime = overtimeFor(company);
+  const assessment = tierAssessment(company);
   return {
     id: company.id,
     name: company.brand || company.name,
     companyName: company.name,
     logoText: company.brand || company.name,
     category: INDUSTRY_MAP[company.industryId]?.name || company.subIndustry || '其他',
-    tier: tierFor(company),
+    tier: assessment.tier,
+    tierScore: assessment.score,
+    tierReason: assessment.reason,
     weekendPolicy: weekendPolicyFor(company.restPattern),
     weekendPolicyLabel: weekendLabelFor(company),
     overtimeComp: overtime.value,
@@ -70,12 +117,21 @@ function toBrand(company: Company): BrandItem {
       type: 'esg_report',
       title: source.title,
       summary: source.publisher ? `发布方：${source.publisher}` : company.policy,
-      sourceUrl: source.url,
+      sourceUrl: safeSourceUrl(source.url),
     })),
     auditStatus: auditStatusFor(company),
     upvotes: 0,
     boycotts: 0,
   };
+}
+
+function safeSourceUrl(rawUrl: string): string | undefined {
+  try {
+    const url = new URL(rawUrl);
+    return url.protocol === 'https:' ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export const DATA_VERSION = 'shuangxiu-index';

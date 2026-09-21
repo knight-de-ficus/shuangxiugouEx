@@ -55,19 +55,6 @@ export function booleanField(value: JsonRecord, field: string): boolean {
   return value[field];
 }
 
-export function visitorId(value: JsonRecord): string {
-  const id = stringField(value, "visitorId", 36, 36);
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
-    throw new ApiError(400, "bad_request", "visitorId must be a valid UUID v4.");
-  }
-  return id.toLowerCase();
-}
-
-export async function hashVisitor(id: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(id));
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
 export function companyId(raw: string): string {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/.test(raw)) {
     throw new ApiError(400, "bad_request", "Company id is invalid.");

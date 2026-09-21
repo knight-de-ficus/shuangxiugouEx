@@ -3,8 +3,14 @@ import { createItem, deleteItem, getItem, listItems, updateItem } from "../db/it
 import { ApiError } from "../services/errors";
 import { parseItemId, parseJsonBody, validateItemInput } from "../services/validation";
 import type { AppEnv } from "../types/bindings";
+import { requireAdmin } from "../services/security-controls";
 
 export const itemRoutes = new Hono<AppEnv>();
+
+itemRoutes.use("/*", async (context, next) => {
+  await requireAdmin(context);
+  await next();
+});
 
 itemRoutes.get("/", async (context) => {
   return context.json({ items: await listItems(context.env.DB) });
@@ -42,4 +48,3 @@ itemRoutes.delete("/:id", async (context) => {
   }
   return context.body(null, 204);
 });
-

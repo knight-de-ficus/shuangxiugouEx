@@ -3,11 +3,10 @@ import { ApiError } from "../services/errors";
 import { parseJsonBody } from "../services/validation";
 import {
   enumField,
-  hashVisitor,
   requireRecord,
   stringField,
-  visitorId,
 } from "../services/community-validation";
+import { enforceRateLimit, networkVisitorHash } from "../services/security-controls";
 import type { AppEnv } from "../types/bindings";
 
 type PostRow = {
@@ -51,11 +50,11 @@ communityRoutes.get("/posts", async (context) => {
 
   const repliesStatement = category
     ? context.env.DB.prepare(
-        "SELECT r.id, r.post_id, r.author_alias, r.content, r.created_at FROM community_replies r WHERE r.post_id IN (SELECT id FROM community_posts WHERE category = ? ORDER BY created_at DESC LIMIT ?) ORDER BY r.created_at ASC",
-      ).bind(category, 50)
+        "SELECT id, post_id, author_alias, content, created_at FROM (SELECT r.id, r.post_id, r.author_alias, r.content, r.created_at, ROW_NUMBER() OVER (PARTITION BY r.post_id ORDER BY r.created_at DESC) AS reply_rank FROM community_replies r WHERE r.post_id IN (SELECT id FROM community_posts WHERE category = ? ORDER BY created_at DESC LIMIT ?)) WHERE reply_rank <= ? ORDER BY created_at ASC",
+      ).bind(category, 50, 20)
     : context.env.DB.prepare(
-        "SELECT r.id, r.post_id, r.author_alias, r.content, r.created_at FROM community_replies r WHERE r.post_id IN (SELECT id FROM community_posts ORDER BY created_at DESC LIMIT ?) ORDER BY r.created_at ASC",
-      ).bind(50);
+        "SELECT id, post_id, author_alias, content, created_at FROM (SELECT r.id, r.post_id, r.author_alias, r.content, r.created_at, ROW_NUMBER() OVER (PARTITION BY r.post_id ORDER BY r.created_at DESC) AS reply_rank FROM community_replies r WHERE r.post_id IN (SELECT id FROM community_posts ORDER BY created_at DESC LIMIT ?)) WHERE reply_rank <= ? ORDER BY created_at ASC",
+      ).bind(50, 20);
 
   const [postsResult, repliesResult] = await context.env.DB.batch([postsStatement, repliesStatement]);
   const posts = postsResult.results as PostRow[];
@@ -87,6 +86,7 @@ communityRoutes.get("/posts", async (context) => {
 });
 
 communityRoutes.post("/posts", async (context) => {
+  await enforceRateLimit(context, "community-post", 5, 3600);
   const body = requireRecord(await parseJsonBody(context.req.raw));
   const id = crypto.randomUUID();
   const category = enumField(body, "category", ["avoid_trap", "recommend_wlb", "ask_intel"] as const);
@@ -114,6 +114,8 @@ communityRoutes.post("/posts/:id/replies", async (context) => {
   if (!(await context.env.DB.prepare("SELECT id FROM community_posts WHERE id = ?").bind(postId).first())) {
     throw new ApiError(404, "not_found", "Post not found.");
   }
+  await enforceRateLimit(context, "community-reply", 20, 3600);
+  await enforceRateLimit(context, `community-reply:${postId}`, 5, 300);
 
   const body = requireRecord(await parseJsonBody(context.req.raw));
   const content = stringField(body, "content", 1, 1000);
@@ -133,20 +135,22 @@ communityRoutes.post("/posts/:id/vote", async (context) => {
   if (!/^[A-Za-z0-9-]{1,80}$/.test(postId)) {
     throw new ApiError(400, "bad_request", "Post id is invalid.");
   }
-  const body = requireRecord(await parseJsonBody(context.req.raw));
-  const visitorHash = await hashVisitor(visitorId(body));
-  const result = await context.env.DB.prepare(
-    "INSERT INTO community_post_votes (post_id, visitor_hash) SELECT ?, ? WHERE EXISTS (SELECT 1 FROM community_posts WHERE id = ?) ON CONFLICT DO NOTHING",
-  )
-    .bind(postId, visitorHash, postId)
-    .run();
-  if (result.meta.changes === 0) {
+  await enforceRateLimit(context, "community-vote", 30, 3600);
+  const visitorHash = await networkVisitorHash(context);
+  const [insertResult] = await context.env.DB.batch([
+    context.env.DB.prepare(
+      "INSERT INTO community_post_votes (post_id, visitor_hash) SELECT ?, ? WHERE EXISTS (SELECT 1 FROM community_posts WHERE id = ?) ON CONFLICT DO NOTHING",
+    ).bind(postId, visitorHash, postId),
+    context.env.DB.prepare(
+      "UPDATE community_posts SET upvotes = upvotes + 1 WHERE id = ? AND changes() = 1",
+    ).bind(postId),
+  ]);
+  if (insertResult.meta.changes === 0) {
     if (!(await context.env.DB.prepare("SELECT id FROM community_posts WHERE id = ?").bind(postId).first())) {
       throw new ApiError(404, "not_found", "Post not found.");
     }
     throw new ApiError(409, "conflict", "This visitor already voted for the post.");
   }
-  await context.env.DB.prepare("UPDATE community_posts SET upvotes = upvotes + 1 WHERE id = ?").bind(postId).run();
   const post = await context.env.DB.prepare("SELECT upvotes FROM community_posts WHERE id = ?").bind(postId).first<{ upvotes: number }>();
   return context.json({ upvotes: post?.upvotes ?? 0 });
 });

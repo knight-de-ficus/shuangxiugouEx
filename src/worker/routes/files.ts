@@ -2,15 +2,25 @@ import { Hono } from "hono";
 import { ApiError } from "../services/errors";
 import { validateObjectKey } from "../services/validation";
 import type { AppEnv } from "../types/bindings";
+import { requireAdmin } from "../services/security-controls";
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
 export const fileRoutes = new Hono<AppEnv>();
 
+fileRoutes.use("/*", async (context, next) => {
+  await requireAdmin(context);
+  await next();
+});
+
 fileRoutes.put("/:key", async (context) => {
   const key = validateObjectKey(context.req.param("key"));
-  const declaredLength = Number(context.req.header("content-length") ?? "0");
-  if (Number.isFinite(declaredLength) && declaredLength > MAX_FILE_BYTES) {
+  const contentLength = context.req.header("content-length");
+  const declaredLength = Number(contentLength);
+  if (!contentLength || !Number.isSafeInteger(declaredLength) || declaredLength < 0) {
+    throw new ApiError(411, "length_required", "A valid Content-Length header is required.");
+  }
+  if (declaredLength > MAX_FILE_BYTES) {
     throw new ApiError(413, "payload_too_large", "File exceeds the 5 MiB example limit.");
   }
 
@@ -19,16 +29,13 @@ fileRoutes.put("/:key", async (context) => {
     throw new ApiError(400, "bad_request", "Content-Type is invalid.");
   }
 
-  const body = await context.req.arrayBuffer();
-  if (body.byteLength > MAX_FILE_BYTES) {
-    throw new ApiError(413, "payload_too_large", "File exceeds the 5 MiB example limit.");
-  }
+  if (!context.req.raw.body) throw new ApiError(400, "bad_request", "File body is required.");
 
-  await context.env.BUCKET.put(key, body, {
+  await context.env.BUCKET.put(key, context.req.raw.body, {
     httpMetadata: { contentType },
   });
 
-  return context.json({ key, size: body.byteLength, contentType }, 201);
+  return context.json({ key, size: declaredLength, contentType }, 201);
 });
 
 fileRoutes.get("/:key", async (context) => {
@@ -54,4 +61,3 @@ fileRoutes.delete("/:key", async (context) => {
   await context.env.BUCKET.delete(key);
   return context.body(null, 204);
 });
-

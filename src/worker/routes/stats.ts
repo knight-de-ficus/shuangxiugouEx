@@ -17,12 +17,12 @@ export const statsRoutes = new Hono<AppEnv>();
 
 statsRoutes.get("/", async (context) => {
   const [pledgesResult, votesResult, reportsResult] = await context.env.DB.batch([
-    context.env.DB.prepare("SELECT COALESCE(SUM(amount_cents), 0) AS total_cents FROM purchase_pledges"),
+    context.env.DB.prepare("SELECT COALESCE(SUM(p.amount_cents), 0) AS total_cents FROM purchase_pledges p INNER JOIN catalog_companies c ON c.id = p.company_id"),
     context.env.DB.prepare(
-      "SELECT company_id, SUM(CASE WHEN vote_type = 'up' THEN 1 ELSE 0 END) AS upvotes, SUM(CASE WHEN vote_type = 'down' THEN 1 ELSE 0 END) AS boycotts FROM brand_votes GROUP BY company_id",
+      "SELECT v.company_id, SUM(CASE WHEN v.vote_type = 'up' THEN 1 ELSE 0 END) AS upvotes, SUM(CASE WHEN v.vote_type = 'down' THEN 1 ELSE 0 END) AS boycotts FROM brand_votes v INNER JOIN catalog_companies c ON c.id = v.company_id GROUP BY v.company_id",
     ),
     context.env.DB.prepare(
-      "SELECT id, company_id, role, weekend_rating, off_work_time, statutory_pay, comment, created_at FROM employee_reports ORDER BY created_at DESC LIMIT ?",
+      "SELECT r.id, r.company_id, r.role, r.weekend_rating, r.off_work_time, r.statutory_pay, r.comment, r.created_at FROM employee_reports r INNER JOIN catalog_companies c ON c.id = r.company_id ORDER BY r.created_at DESC LIMIT ?",
     ).bind(1000),
   ]);
 
@@ -57,7 +57,7 @@ statsRoutes.get("/", async (context) => {
             .map((item) => ({
               id: item.id,
               role: item.role,
-              verifiedStatus: "peer_attested",
+              verifiedStatus: "community_unverified",
               comment: item.comment,
               date: item.created_at.slice(0, 10),
               voteType: item.weekend_rating >= 60 ? "supports_double" : "reports_overtime",

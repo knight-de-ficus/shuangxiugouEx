@@ -20,15 +20,6 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   return body;
 }
 
-export function getVisitorId(): string {
-  const key = 'shuangxiugou-visitor-id';
-  const existing = localStorage.getItem(key);
-  if (existing) return existing;
-  const id = crypto.randomUUID();
-  localStorage.setItem(key, id);
-  return id;
-}
-
 export interface SiteStats {
   transferredAmount: number;
   votes: Record<string, { upvotes: number; boycotts: number }>;
@@ -40,7 +31,7 @@ export const getSiteStats = () => requestJson<SiteStats>('/api/stats');
 export const voteForBrand = (companyId: string, voteType: 'up' | 'down') =>
   requestJson<{ recorded: true }>(`/api/brands/${encodeURIComponent(companyId)}/votes`, {
     method: 'POST',
-    body: JSON.stringify({ visitorId: getVisitorId(), voteType }),
+    body: JSON.stringify({ voteType }),
   });
 
 export const submitEmployeeReport = (
@@ -97,5 +88,4 @@ export const createCommunityReply = (postId: string, content: string) =>
 export const voteForCommunityPost = (postId: string) =>
   requestJson<{ upvotes: number }>(`/api/community/posts/${encodeURIComponent(postId)}/vote`, {
     method: 'POST',
-    body: JSON.stringify({ visitorId: getVisitorId() }),
   });

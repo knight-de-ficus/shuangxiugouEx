@@ -2,10 +2,12 @@ import { Hono } from "hono";
 import { parseJsonBody } from "../services/validation";
 import { enumField, requireRecord, stringField } from "../services/community-validation";
 import type { AppEnv } from "../types/bindings";
+import { enforceRateLimit } from "../services/security-controls";
 
 export const submissionRoutes = new Hono<AppEnv>();
 
 submissionRoutes.post("/", async (context) => {
+  await enforceRateLimit(context, "submission", 5, 3600);
   const body = requireRecord(await parseJsonBody(context.req.raw));
   const id = crypto.randomUUID();
   const kind = enumField(body, "kind", ["recommend", "report"] as const);

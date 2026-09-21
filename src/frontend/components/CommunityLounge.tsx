@@ -117,13 +117,13 @@ export const CommunityLounge: React.FC = () => {
       {/* 头部社区横幅 */}
       <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-700/60 relative overflow-hidden">
         <div className="max-w-2xl space-y-3 relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-400/30">
-            <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/20 text-red-300 text-xs font-bold border border-red-400/30">
+            <MessageSquare className="w-3.5 h-3.5 text-red-400" />
             打工人茶水间 · 真实互助讨论广场
           </div>
           <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
             这里没有公关控评：
-            <span className="bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-red-400 to-rose-300 bg-clip-text text-transparent">
               员工敢讲真工时，买家抱团选平替
             </span>
           </h2>
@@ -146,7 +146,7 @@ export const CommunityLounge: React.FC = () => {
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                   activeTab === tab.id
-                    ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                    ? 'bg-red-500 text-slate-950 shadow-md shadow-red-500/20'
                     : 'bg-white/10 text-slate-300 hover:bg-white/20'
                 }`}
               >
@@ -158,7 +158,7 @@ export const CommunityLounge: React.FC = () => {
 
           <button
             onClick={() => setShowPostModal(true)}
-            className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-600/20"
+            className="px-5 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-red-600/20"
           >
             <PlusCircle className="w-4 h-4" />
             <span>匿名发帖交流</span>
@@ -206,7 +206,7 @@ export const CommunityLounge: React.FC = () => {
                     post.category === 'avoid_trap'
                       ? 'bg-rose-100 text-rose-800'
                       : post.category === 'recommend_wlb'
-                      ? 'bg-emerald-100 text-emerald-800'
+                      ? 'bg-red-100 text-red-800'
                       : 'bg-indigo-100 text-indigo-800'
                   }`}
                 >
@@ -239,7 +239,7 @@ export const CommunityLounge: React.FC = () => {
                   onClick={() => void handleUpvote(post.id)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition ${
                     upvotedPostIds[post.id]
-                      ? 'bg-emerald-50 border-emerald-300 text-emerald-700 font-bold'
+                      ? 'bg-red-50 border-red-300 text-red-700 font-bold'
                       : 'border-slate-200 hover:bg-slate-50 text-slate-600'
                   }`}
                 >
@@ -294,7 +294,7 @@ export const CommunityLounge: React.FC = () => {
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
                     placeholder="匿名理性留言交流，共同打破信息差..."
-                    className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500"
                     onKeyDown={(e) => e.key === 'Enter' && void handleAddReply(post.id)}
                   />
                   <button
@@ -320,7 +320,7 @@ export const CommunityLounge: React.FC = () => {
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-lg font-black tracking-tight text-white flex items-center gap-1.5">
-                    <MessageSquare className="w-4 h-4 text-emerald-400" />
+                    <MessageSquare className="w-4 h-4 text-red-400" />
                     发起匿名讨论 / 爆料 / 种草
                   </h3>
                   <p className="text-xs text-slate-400 mt-1">
@@ -351,7 +351,7 @@ export const CommunityLounge: React.FC = () => {
                       onClick={() => setNewCategory(t.id as any)}
                       className={`p-2.5 rounded-xl border text-center font-bold transition ${
                         newCategory === t.id
-                          ? 'border-emerald-600 bg-emerald-50 text-emerald-900 ring-2 ring-emerald-500/20'
+                          ? 'border-red-600 bg-red-50 text-red-900 ring-2 ring-red-500/20'
                           : 'border-slate-200 bg-slate-50 text-slate-600'
                       }`}
                     >
@@ -370,7 +370,7 @@ export const CommunityLounge: React.FC = () => {
                     onChange={(e) => setNewTarget(e.target.value)}
                     placeholder="如：某汽车厂 / 某咖啡连锁"
                     required
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-red-500"
                   />
                 </div>
                 <div>
@@ -380,7 +380,7 @@ export const CommunityLounge: React.FC = () => {
                     value={newRole}
                     onChange={(e) => setNewRole(e.target.value)}
                     placeholder="如：在职技术 / 离职员工 / 消费者"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-red-500"
                   />
                 </div>
               </div>
@@ -393,7 +393,7 @@ export const CommunityLounge: React.FC = () => {
                   onChange={(e) => setNewTitle(e.target.value)}
                   placeholder="简洁有力的标题，吸引更多打工人关注..."
                   required
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-red-500 font-bold"
                 />
               </div>
 
@@ -405,7 +405,7 @@ export const CommunityLounge: React.FC = () => {
                   onChange={(e) => setNewContent(e.target.value)}
                   placeholder="客观写明部门、作息、下班时间、加班费是否发放，或为什么推荐/避雷该品牌..."
                   required
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-red-500"
                 />
               </div>
 
@@ -418,7 +418,7 @@ export const CommunityLounge: React.FC = () => {
                   value={newBadge}
                   onChange={(e) => setNewBadge(e.target.value)}
                   placeholder="如：劳动裁判文书网案号 / 工牌脱敏 / 官方通报链接"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-red-500 font-mono"
                 />
               </div>
 

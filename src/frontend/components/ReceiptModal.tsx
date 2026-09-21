@@ -64,7 +64,7 @@ export const ReceiptModal: React.FC<ReceiptCardProps> = ({
       <div className="max-w-sm w-full my-auto space-y-4">
         {/* 顶部控制栏 */}
         <div className="flex items-center justify-between text-white/80 px-1">
-          <div className="flex items-center gap-1.5 text-xs font-semibold tracking-wider text-emerald-400">
+          <div className="flex items-center gap-1.5 text-xs font-semibold tracking-wider text-red-400">
             <Sparkles className="w-3.5 h-3.5" />
             打工人反向考核凭据
           </div>
@@ -93,7 +93,7 @@ export const ReceiptModal: React.FC<ReceiptCardProps> = ({
                 <span>违规避雷</span>
               </div>
             ) : (
-              <div className="border-2 border-emerald-600 text-emerald-600 rounded-lg px-2.5 py-1 text-[11px] font-black tracking-widest uppercase flex items-center gap-1 shadow-sm">
+              <div className="border-2 border-red-600 text-red-600 rounded-lg px-2.5 py-1 text-[11px] font-black tracking-widest uppercase flex items-center gap-1 shadow-sm">
                 <ShieldCheck className="w-3.5 h-3.5" />
                 <span>良心认证</span>
               </div>
@@ -102,8 +102,9 @@ export const ReceiptModal: React.FC<ReceiptCardProps> = ({
 
           {/* 抬头 */}
           <div className="text-center pb-4 border-b border-dashed border-slate-300 space-y-1">
-            <div className="text-base font-black tracking-tighter text-slate-950 flex items-center justify-center gap-1">
-              <span>★ 双休购 · 反向考核小票 ★</span>
+            <div className="text-base font-black tracking-tighter text-slate-950 flex items-center justify-center gap-2">
+              <img src="/logo.svg" alt="双休购购物车 Logo" className="h-7 w-7" />
+              <span>双休购 · 反向考核小票</span>
             </div>
             <div className="text-[10px] text-slate-500 font-sans tracking-tight">
               SHUANGXIUGOU CONSUMER AUDIT RECEIPT
@@ -136,7 +137,7 @@ export const ReceiptModal: React.FC<ReceiptCardProps> = ({
               <span
                 className={`font-black px-1.5 py-0.5 rounded text-xs ${
                   brand.tier === 'S'
-                    ? 'bg-emerald-100 text-emerald-800'
+                    ? 'bg-red-100 text-red-800'
                     : brand.tier === 'A'
                     ? 'bg-green-100 text-green-800'
                     : brand.tier === 'B'
@@ -157,7 +158,7 @@ export const ReceiptModal: React.FC<ReceiptCardProps> = ({
               </span>
               <span
                 className={`text-xl font-black font-mono ${
-                  isBoycott ? 'text-rose-600' : 'text-emerald-700'
+                  isBoycott ? 'text-rose-600' : 'text-red-700'
                 }`}
               >
                 {isBoycott ? '-' : '+'} ¥ {customAmount.toLocaleString()}
@@ -208,7 +209,7 @@ export const ReceiptModal: React.FC<ReceiptCardProps> = ({
                 type="number"
                 value={customAmount}
                 onChange={(e) => setCustomAmount(Math.max(1, Number(e.target.value)))}
-                className="w-24 px-2 py-1 bg-slate-100 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-800 text-right focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-24 px-2 py-1 bg-slate-100 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-800 text-right focus:outline-none focus:ring-1 focus:ring-red-500"
               />
             </div>
           </div>
@@ -218,7 +219,7 @@ export const ReceiptModal: React.FC<ReceiptCardProps> = ({
               onClick={handleCopyText}
               className="py-2.5 px-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition flex items-center justify-center gap-1.5 shadow-xs"
             >
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+              {copied ? <Check className="w-3.5 h-3.5 text-red-600" /> : <Copy className="w-3.5 h-3.5" />}
               <span>{copied ? '已复制' : '复制文本'}</span>
             </button>
 
@@ -242,7 +243,7 @@ export const ReceiptModal: React.FC<ReceiptCardProps> = ({
               }
             }}
             disabled={saving}
-            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20"
+            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-red-600/20"
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>{saving ? '保存中…' : '确认打卡并计入全网总额'}</span>

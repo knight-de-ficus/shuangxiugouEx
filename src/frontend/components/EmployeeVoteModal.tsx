@@ -62,8 +62,8 @@ export const EmployeeVoteModal: React.FC<EmployeeVoteModalProps> = ({
         <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-6 relative">
           <div className="flex justify-between items-start">
             <div className="space-y-1">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-semibold border border-emerald-400/30">
-                <BadgeCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-300 text-xs font-semibold border border-red-400/30">
+                <BadgeCheck className="w-3.5 h-3.5 text-red-400" />
                 匿名员工工时反馈
               </div>
               <h2 className="text-xl font-black tracking-tight text-white flex items-center gap-2 pt-1">
@@ -87,7 +87,7 @@ export const EmployeeVoteModal: React.FC<EmployeeVoteModalProps> = ({
           {/* 1. 角色岗位 */}
           <div className="space-y-2">
             <label className="font-bold text-slate-700 flex items-center gap-1.5">
-              <UserCheck className="w-4 h-4 text-emerald-600" />
+              <UserCheck className="w-4 h-4 text-red-600" />
               你的部门/岗位类型:
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -98,7 +98,7 @@ export const EmployeeVoteModal: React.FC<EmployeeVoteModalProps> = ({
                   onClick={() => setRole(item)}
                   className={`p-2.5 rounded-xl border text-center font-medium transition ${
                     role === item
-                      ? 'border-emerald-600 bg-emerald-50 text-emerald-900 font-bold ring-2 ring-emerald-500/20'
+                      ? 'border-red-600 bg-red-50 text-red-900 font-bold ring-2 ring-red-500/20'
                       : 'border-slate-200 bg-slate-50/60 text-slate-600 hover:bg-slate-100'
                   }`}
                 >
@@ -112,10 +112,10 @@ export const EmployeeVoteModal: React.FC<EmployeeVoteModalProps> = ({
           <div className="space-y-2">
             <div className="flex justify-between items-center font-bold text-slate-700">
               <label className="flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <ShieldCheck className="w-4 h-4 text-red-600" />
                 周末休息真实情况 (选最符合的一项):
               </label>
-              <span className="text-emerald-700 font-mono text-sm">{weekendRating}% 双休指数</span>
+              <span className="text-red-700 font-mono text-sm">{weekendRating}% 双休指数</span>
             </div>
             <div className="grid grid-cols-3 gap-2">
               {[
@@ -129,7 +129,7 @@ export const EmployeeVoteModal: React.FC<EmployeeVoteModalProps> = ({
                   onClick={() => setWeekendRating(lvl.rate)}
                   className={`p-3 rounded-xl border text-left transition ${
                     weekendRating === lvl.rate
-                      ? 'border-emerald-600 bg-emerald-50 text-emerald-900 font-bold ring-2 ring-emerald-500/20'
+                      ? 'border-red-600 bg-red-50 text-red-900 font-bold ring-2 ring-red-500/20'
                       : 'border-slate-200 bg-slate-50/50 hover:bg-slate-100 text-slate-700'
                   }`}
                 >
@@ -144,13 +144,13 @@ export const EmployeeVoteModal: React.FC<EmployeeVoteModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="font-bold text-slate-700 flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-emerald-600" />
+                <Clock className="w-4 h-4 text-red-600" />
                 平时平均下班时间:
               </label>
               <select
                 value={offWorkTime}
                 onChange={(e) => setOffWorkTime(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500"
               >
                 <option value="17:30">17:30 之前 (神仙外企)</option>
                 <option value="18:00">18:00 准点 (标准965)</option>
@@ -162,7 +162,7 @@ export const EmployeeVoteModal: React.FC<EmployeeVoteModalProps> = ({
 
             <div className="space-y-1.5">
               <label className="font-bold text-slate-700 flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <ShieldCheck className="w-4 h-4 text-red-600" />
                 法定加班报酬/福利:
               </label>
               <div className="grid grid-cols-2 gap-2">
@@ -171,7 +171,7 @@ export const EmployeeVoteModal: React.FC<EmployeeVoteModalProps> = ({
                   onClick={() => setStatutoryPay(true)}
                   className={`p-2.5 rounded-xl border text-center transition font-semibold ${
                     statutoryPay
-                      ? 'border-emerald-600 bg-emerald-50 text-emerald-900 ring-2 ring-emerald-500/20'
+                      ? 'border-red-600 bg-red-50 text-red-900 ring-2 ring-red-500/20'
                       : 'border-slate-200 bg-slate-50 text-slate-600'
                   }`}
                 >
@@ -195,7 +195,7 @@ export const EmployeeVoteModal: React.FC<EmployeeVoteModalProps> = ({
           {/* 4. 真实证言 (可选) */}
           <div className="space-y-1.5">
             <label className="font-bold text-slate-700 flex items-center gap-1.5">
-              <MessageSquare className="w-4 h-4 text-emerald-600" />
+              <MessageSquare className="w-4 h-4 text-red-600" />
               一句话给求职者和消费者的真心话 (匿名展示):
             </label>
             <textarea
@@ -203,7 +203,7 @@ export const EmployeeVoteModal: React.FC<EmployeeVoteModalProps> = ({
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="例如：直属老板挺开明，基本到点走 / 赶项目时周末必来，别听HR瞎忽悠..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs leading-relaxed"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 text-xs leading-relaxed"
             />
           </div>
 
@@ -231,7 +231,7 @@ export const EmployeeVoteModal: React.FC<EmployeeVoteModalProps> = ({
               disabled={isSubmitting}
               className="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold transition shadow-lg shadow-slate-900/20 flex items-center gap-1.5"
             >
-              <Sparkles className="w-4 h-4 text-emerald-400" />
+              <Sparkles className="w-4 h-4 text-red-400" />
               <span>{isSubmitting ? '入库公证中...' : '提交我的真实工时票'}</span>
             </button>
           </div>

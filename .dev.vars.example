@@ -1,4 +1,4 @@
-# Copy this file to .dev.vars only when your Worker needs local secrets.
-# Do not commit .dev.vars. This template intentionally contains no real secret.
-# EXAMPLE_API_SECRET="replace-with-a-local-only-value"
-
+# Copy this file to .dev.vars and replace both placeholders with independent,
+# randomly generated values of at least 32 characters. Never commit .dev.vars.
+ADMIN_API_TOKEN="replace-with-a-long-random-local-admin-token"
+ABUSE_HASH_SALT="replace-with-an-independent-long-random-salt"
