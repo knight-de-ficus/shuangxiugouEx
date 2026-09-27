@@ -1,8 +1,15 @@
-import { COMPANIES, LAST_UPDATED } from './vendor-data/data/companies';
+import { COMPANIES } from './vendor-data/data/companies';
 import { INDUSTRY_MAP } from './vendor-data/data/industries';
 import { mergeProfile } from './vendor-data/data/profiles';
 import type { Company, RestPatternId } from './vendor-data/types';
-import type { AuditStatus, BrandItem, OvertimeComp, WeekendPolicy, WlbTier } from './types';
+import { REDLIST_ADMISSIONS, REDLIST_IDS } from './redlist-admissions';
+import type {
+  AuditStatus,
+  BrandItem,
+  OvertimeComp,
+  WeekendPolicy,
+  WlbTier,
+} from './types';
 
 function tierAssessment(company: Company): { tier: WlbTier; score: number | null; reason: string } {
   if (company.weeklyRestDays === null && company.weeklyHours === null) {
@@ -93,6 +100,11 @@ function auditStatusFor(company: Company): AuditStatus {
 function toBrand(company: Company): BrandItem {
   const overtime = overtimeFor(company);
   const assessment = tierAssessment(company);
+  const redlist = REDLIST_ADMISSIONS[company.id];
+  if (!redlist) {
+    throw new Error(`Company ${company.id} is not admitted to the public redlist.`);
+  }
+  const sources = redlist.sources.length > 0 ? redlist.sources : company.sources;
   return {
     id: company.id,
     name: company.brand || company.name,
@@ -111,7 +123,7 @@ function toBrand(company: Company): BrandItem {
     reasons: [company.policy, company.note, company.scope ? `适用范围：${company.scope}` : undefined].filter(
       (value): value is string => Boolean(value),
     ),
-    evidence: company.sources.map((source, index) => ({
+    evidence: sources.map((source, index) => ({
       id: `${company.id}-source-${index + 1}`,
       date: source.date,
       type: 'esg_report',
@@ -119,9 +131,10 @@ function toBrand(company: Company): BrandItem {
       summary: source.publisher ? `发布方：${source.publisher}` : company.policy,
       sourceUrl: safeSourceUrl(source.url),
     })),
-    auditStatus: auditStatusFor(company),
+    auditStatus: redlist.auditStatus ?? auditStatusFor(company),
     upvotes: 0,
     boycotts: 0,
+    ...redlist,
   };
 }
 
@@ -135,9 +148,15 @@ function safeSourceUrl(rawUrl: string): string | undefined {
 }
 
 export const DATA_VERSION = 'shuangxiu-index';
-export const DATA_UPDATED_AT = LAST_UPDATED;
+export const DATA_UPDATED_AT = '2026-09-27';
 export const DATA_LICENSE = 'Copied from shuangxiu-index; verify upstream licensing and source records before redistribution.';
 export const DATA_DISCLAIMER = '公开资料仅供参考；不同岗位、地点和时期的制度可能不同。';
 
-export const INITIAL_BRANDS: BrandItem[] = COMPANIES.map(mergeProfile).map(toBrand);
+const COMPANY_BY_ID = new Map(COMPANIES.map((company) => [company.id, company]));
+
+export const INITIAL_BRANDS: BrandItem[] = REDLIST_IDS
+  .map((companyId) => COMPANY_BY_ID.get(companyId))
+  .filter((company): company is Company => Boolean(company))
+  .map(mergeProfile)
+  .map(toBrand);
 export const CATEGORIES = ['全部', ...Array.from(new Set(INITIAL_BRANDS.map((brand) => brand.category))).sort()];

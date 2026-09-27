@@ -19,6 +19,7 @@ submissionRoutes.get("/", async (context) => {
     evidence: string;
     created_at: string;
   }>();
+  context.header("Cache-Control", "public, max-age=15, s-maxage=60, stale-while-revalidate=300");
   return context.json({
     submissions: result.results.map((row) => ({
       id: row.id,

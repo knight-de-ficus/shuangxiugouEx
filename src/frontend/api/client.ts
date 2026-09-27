@@ -1,4 +1,5 @@
 import type { CommunityPost, EmployeeVoteStats, PostCategory } from '../types';
+import type { EmployeeExecutionReport } from '../components/EmployeeVoteModal';
 
 interface ApiErrorBody {
   error?: { message?: string };
@@ -31,6 +32,13 @@ export interface PendingSubmission {
   status: 'pending';
 }
 
+export interface PublishedEngagement {
+  id?: string;
+  status: 'published';
+}
+
+export type EngagementSubmission = PendingSubmission | PublishedEngagement;
+
 export interface PublishedSubmission {
   id: string;
   kind: 'recommend' | 'report';
@@ -44,25 +52,39 @@ export interface PublishedSubmission {
 export const getSiteStats = () => requestJson<SiteStats>('/api/stats');
 
 export const voteForBrand = (companyId: string, voteType: 'up' | 'down') =>
-  requestJson<{ submission: PendingSubmission }>(`/api/brands/${encodeURIComponent(companyId)}/votes`, {
+  requestJson<{ submission: PublishedEngagement }>(`/api/brands/${encodeURIComponent(companyId)}/votes`, {
     method: 'POST',
     body: JSON.stringify({ voteType }),
   });
 
 export const submitEmployeeReport = (
   companyId: string,
-  input: { role: string; weekendRating: number; offWorkTime: string; statutoryPay: boolean; comment: string },
+  input: EmployeeExecutionReport,
 ) =>
   requestJson<{ submission: PendingSubmission }>(`/api/brands/${encodeURIComponent(companyId)}/employee-reports`, {
     method: 'POST',
     body: JSON.stringify(input),
   });
 
-export const submitPurchasePledge = (companyId: string, amount: number) =>
-  requestJson<{ submission: PendingSubmission }>(`/api/brands/${encodeURIComponent(companyId)}/purchase-pledges`, {
-    method: 'POST',
-    body: JSON.stringify({ amountCents: Math.round(amount * 100) }),
-  });
+export const submitPurchasePledge = (companyId: string, amount: number) => {
+  const amountCents = Math.round(amount * 100);
+  if (
+    !Number.isFinite(amount) ||
+    Math.abs(amount * 100 - amountCents) > 1e-7 ||
+    amountCents < 100 ||
+    amountCents > 100_000_000
+  ) {
+    throw new Error('消费金额必须在 1 元到 1,000,000 元之间，且最多保留两位小数。');
+  }
+
+  return requestJson<{ submission: EngagementSubmission }>(
+    `/api/brands/${encodeURIComponent(companyId)}/purchase-pledges`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ amountCents }),
+    },
+  );
+};
 
 export const submitLead = (input: {
   kind: 'recommend' | 'report';
@@ -104,6 +126,6 @@ export const createCommunityReply = (postId: string, content: string) =>
   );
 
 export const voteForCommunityPost = (postId: string) =>
-  requestJson<{ submission: PendingSubmission }>(`/api/community/posts/${encodeURIComponent(postId)}/vote`, {
+  requestJson<{ submission: PublishedEngagement }>(`/api/community/posts/${encodeURIComponent(postId)}/vote`, {
     method: 'POST',
   });

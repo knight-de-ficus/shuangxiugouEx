@@ -6,6 +6,12 @@ export type OvertimeComp = 'statutory_paid' | 'swap_leave' | 'unpaid' | 'rarely_
 
 export type AuditStatus = 'official_verified' | 'community_verified' | 'disputed' | 'under_review';
 
+export type CompanyRole = 'consumer' | 'supplier' | 'both';
+
+export type RedlistAdmission = 'public_evidence_trial' | 'employee_verified';
+
+export type ConfidenceLevel = '初步' | '中等' | '较高';
+
 export interface EvidenceRecord {
   id: string;
   date: string;
@@ -22,6 +28,11 @@ export interface EmployeeVoteStats {
   avgOffWorkTime: string; // 员工平均下班时间 e.g. "18:30"
   hasStatutoryPayRate: number; // 加班费依法足额发放率
   totalEmployeeVotes: number; // 员工总票数
+  totalObservedWeeks?: number;
+  totalDoubleRestWeeks?: number;
+  avgWeeklyHours?: number;
+  coveredRoles?: number;
+  coveredLocations?: number;
   anonymousComments: Array<{
     id: string;
     role: string; // e.g. "产线工人" | "研发工程师" | "职能支持" | "销售运营"
@@ -55,6 +66,14 @@ export interface BrandItem {
   boycotts: number;
   // 双轨投票与员工真实评测
   employeeStats?: EmployeeVoteStats;
+  companyRole: CompanyRole;
+  admission: RedlistAdmission;
+  confidence: ConfidenceLevel;
+  verifiedScope: string;
+  verifiedAt: string;
+  inclusionSummary: string;
+  limitations: string[];
+  supplyChainProducts: string[];
 }
 
 // 社区讨论帖类型

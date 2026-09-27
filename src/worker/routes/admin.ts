@@ -39,15 +39,15 @@ adminRoutes.get("/:routeKey", async (context) => {
     .auth{display:grid;grid-template-columns:1fr auto;gap:10px}.toolbar{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0}.toolbar select,.toolbar input{width:auto}
     input,select,textarea,button{font:inherit}input,select,textarea{width:100%;border:1px solid #cbd5e1;border-radius:9px;padding:10px;background:#fff}textarea{min-height:72px;resize:vertical}
     button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:pointer}.primary{background:#b91c1c;color:#fff}.secondary{background:#e2e8f0;color:#1e293b}.danger{background:#0f172a;color:#fff}button:disabled{opacity:.45;cursor:not-allowed}
-    .cards{display:grid;gap:12px}.card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:15px}.head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.tag{font:700 12px ui-monospace,monospace;color:#991b1b;background:#fee2e2;padding:4px 7px;border-radius:6px}.payload{white-space:pre-wrap;word-break:break-word;background:#f8fafc;border-radius:9px;padding:10px;font:12px/1.55 ui-monospace,monospace;margin:12px 0}.actions{display:flex;gap:8px;justify-content:flex-end}.empty{text-align:center;padding:48px 12px;color:#64748b}.error{color:#b91c1c;font-weight:700}.ok{color:#166534;font-weight:700}
-    @media(max-width:640px){.auth{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}.actions{justify-content:stretch}.actions button{flex:1}}
+    .cards{display:grid;gap:12px}.card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:15px}.head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.tag{display:inline-block;font-size:12px;font-weight:700;color:#991b1b;background:#fee2e2;padding:4px 7px;border-radius:6px}.event{margin:14px 0 12px;font-size:17px;line-height:1.55}.event strong{color:#991b1b}.details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px;background:#f8fafc;border-radius:10px;padding:12px;margin:12px 0}.detail{min-width:0}.detail-label{color:#64748b;font-size:12px;margin-bottom:3px}.detail-value{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.5}.actions{display:flex;gap:8px;justify-content:flex-end}.empty{text-align:center;padding:48px 12px;color:#64748b}.error{color:#b91c1c;font-weight:700}.ok{color:#166534;font-weight:700}
+    @media(max-width:640px){.auth{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}.details{grid-template-columns:1fr}.actions{justify-content:stretch}.actions button{flex:1}}
   </style>
 </head>
 <body>
   <main class="shell">
     <div class="top"><div><h1>双休购审批后台</h1><div class="muted">路径密钥与管理员 Token 双重验证 · Token 仅保存在当前页面内存</div></div><div id="summary" class="muted">尚未认证</div></div>
     <section class="panel">
-      <div class="auth"><input id="token" type="password" autocomplete="off" placeholder="输入 ADMIN_API_TOKEN"><button id="login" class="primary">验证并加载</button></div>
+      <div class="auth"><input id="token" type="password" autocomplete="off" placeholder="输入 MODERATION_ADMIN_TOKEN"><button id="login" class="primary">验证并加载</button></div>
       <div class="toolbar"><select id="status"><option value="pending">待审批</option><option value="approved">已通过</option><option value="rejected">已拒绝</option></select><button id="refresh" class="secondary" disabled>刷新</button><span id="message" class="muted"></span></div>
       <div id="queue" class="cards"><div class="empty">输入管理员 Token 后加载审批队列。</div></div>
     </section>
@@ -74,6 +74,25 @@ adminRoutes.get("/:routeKey", async (context) => {
         return body;
       };
       const element = (tag, className, text) => { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; };
+      const statusLabels = { pending: '待审批', approved: '已通过', rejected: '已拒绝' };
+      const appendPresentation = (card, presentation) => {
+        const event = element('div', 'event');
+        event.append(
+          document.createTextNode((presentation.actor || '匿名用户') + ' 对 '),
+          element('strong', '', presentation.company || '未指定企业'),
+          document.createTextNode(' ' + (presentation.action || '提交了内容')),
+        );
+        card.append(event);
+        if (Array.isArray(presentation.details) && presentation.details.length) {
+          const details = element('div', 'details');
+          for (const item of presentation.details) {
+            const row = element('div', 'detail');
+            row.append(element('div', 'detail-label', item.label), element('div', 'detail-value', item.value));
+            details.append(row);
+          }
+          card.append(details);
+        }
+      };
       const load = async () => {
         setMessage('加载中…');
         refreshButton.disabled = true;
@@ -86,9 +105,10 @@ adminRoutes.get("/:routeKey", async (context) => {
             const card = element('article', 'card');
             const head = element('div', 'head');
             const title = element('div');
-            title.append(element('span', 'tag', entry.submission_type), element('div', 'muted', entry.created_at + ' · ' + entry.target_key));
-            head.append(title, element('strong', '', entry.status));
-            card.append(head, element('div', 'payload', JSON.stringify(entry.payload, null, 2)));
+            title.append(element('span', 'tag', entry.presentation.typeLabel), element('div', 'muted', new Date(entry.created_at).toLocaleString('zh-CN')));
+            head.append(title, element('strong', '', statusLabels[entry.status] || entry.status));
+            card.append(head);
+            appendPresentation(card, entry.presentation);
             if (entry.status === 'pending') {
               const note = element('textarea'); note.placeholder = '审批说明（可选，最多 1000 字）';
               const actions = element('div', 'actions');

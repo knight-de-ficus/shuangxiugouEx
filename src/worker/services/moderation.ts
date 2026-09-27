@@ -1,5 +1,7 @@
 import type { Context } from "hono";
+import { COMPANIES } from "../../frontend/vendor-data/data/companies";
 import { ApiError } from "./errors";
+import { purchaseAmountCents } from "./purchase-amount";
 import { adminFingerprint, networkVisitorHash } from "./security-controls";
 import type { AppEnv } from "../types/bindings";
 import {
@@ -33,6 +35,181 @@ export type ModerationRow = {
   created_at: string;
   reviewed_at: string | null;
 };
+
+type ModerationPresentation = {
+  actor: string;
+  action: string;
+  company: string;
+  typeLabel: string;
+  details: Array<{ label: string; value: string }>;
+};
+
+const companyNames = new Map(
+  COMPANIES.map((company) => [
+    company.id,
+    company.brand && company.brand !== company.name
+      ? `${company.name}（${company.brand}）`
+      : company.name,
+  ]),
+);
+
+function payloadRecord(payload: unknown): Record<string, unknown> {
+  return typeof payload === "object" && payload !== null && !Array.isArray(payload)
+    ? payload as Record<string, unknown>
+    : {};
+}
+
+function payloadText(payload: Record<string, unknown>, field: string): string {
+  const value = payload[field];
+  return typeof value === "string" ? value : "";
+}
+
+function payloadNumber(payload: Record<string, unknown>, field: string): number | null {
+  const value = payload[field];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function companyLabel(companyId: string): string {
+  return companyNames.get(companyId) ?? (companyId ? `未知企业（${companyId}）` : "未指定企业");
+}
+
+function anonymousActor(submitterHash: string): string {
+  return `匿名用户 #${submitterHash.slice(0, 8).toUpperCase()}`;
+}
+
+function detail(label: string, value: unknown): { label: string; value: string } | null {
+  if (value === "" || value === null || value === undefined) return null;
+  return { label, value: String(value) };
+}
+
+function compactDetails(
+  values: Array<{ label: string; value: string } | null>,
+): Array<{ label: string; value: string }> {
+  return values.filter((value): value is { label: string; value: string } => value !== null);
+}
+
+function moderationPresentation(row: ModerationRow, rawPayload: unknown): ModerationPresentation {
+  const payload = payloadRecord(rawPayload);
+  const actor = anonymousActor(row.submitter_hash);
+
+  switch (row.submission_type) {
+    case "brand_vote": {
+      const companyId = payloadText(payload, "companyId") || row.target_key;
+      const voteType = payloadText(payload, "voteType");
+      return {
+        actor,
+        action: voteType === "up" ? "点赞" : voteType === "down" ? "点踩" : "提交企业评价",
+        company: companyLabel(companyId),
+        typeLabel: "企业评价",
+        details: [],
+      };
+    }
+    case "employee_report": {
+      const companyId = payloadText(payload, "companyId") || row.target_key;
+      const employmentStatus = payloadText(payload, "employmentStatus");
+      const observedWeeks = payloadNumber(payload, "observedWeeks");
+      const doubleRestWeeks = payloadNumber(payload, "doubleRestWeeks");
+      const statutoryPay = payload.statutoryPay;
+      const employeeIdentity = employmentStatus === "current"
+        ? "在职员工"
+        : employmentStatus === "recent_former"
+          ? "近期离职员工"
+          : "员工";
+      return {
+        actor: `${actor} · ${employeeIdentity}`,
+        action: "提交员工反馈",
+        company: companyLabel(companyId),
+        typeLabel: "员工反馈",
+        details: compactDetails([
+          detail("岗位", payloadText(payload, "role")),
+          detail("工作地点", payloadText(payload, "location")),
+          detail(
+            "双休观察",
+            observedWeeks !== null && doubleRestWeeks !== null
+              ? `观察 ${observedWeeks} 周，其中 ${doubleRestWeeks} 周休足两天`
+              : "",
+          ),
+          detail("通常周工时", payloadNumber(payload, "weeklyHours") === null ? "" : `${payloadNumber(payload, "weeklyHours")} 小时`),
+          detail("休息日被打断", payloadNumber(payload, "restDayInterruptions") === null ? "" : `${payloadNumber(payload, "restDayInterruptions")} 次`),
+          detail("双休评分", payloadNumber(payload, "weekendRating") === null ? "" : `${payloadNumber(payload, "weekendRating")} 分`),
+          detail("下班时间", payloadText(payload, "offWorkTime")),
+          detail("加班费或补休", typeof statutoryPay === "boolean" ? (statutoryPay ? "已兑现" : "未兑现") : ""),
+          detail("补充说明", payloadText(payload, "comment")),
+        ]),
+      };
+    }
+    case "purchase_pledge": {
+      const companyId = payloadText(payload, "companyId") || row.target_key.split(":")[0];
+      const amountCents = payloadNumber(payload, "amountCents");
+      return {
+        actor,
+        action: "提交消费支持",
+        company: companyLabel(companyId),
+        typeLabel: "消费支持",
+        details: compactDetails([
+          detail("消费金额", amountCents === null ? "" : `¥${(amountCents / 100).toFixed(2)}`),
+          detail("记录日期", payloadText(payload, "pledgeDay")),
+        ]),
+      };
+    }
+    case "company_submission": {
+      const kind = payloadText(payload, "kind");
+      const companyName = payloadText(payload, "companyName");
+      const policyLabels: Record<string, string> = {
+        strict_double: "标准双休",
+        alternate: "大小周或轮班",
+        single: "单休",
+        unknown: "休息制度未知",
+      };
+      return {
+        actor,
+        action: kind === "recommend" ? "推荐企业" : "提交企业资料更新",
+        company: companyName || "未填写企业名称",
+        typeLabel: "企业推荐 / 更新",
+        details: compactDetails([
+          detail("所属公司", payloadText(payload, "parentCompany")),
+          detail("工作制度", policyLabels[payloadText(payload, "workPolicy")] ?? payloadText(payload, "workPolicy")),
+          detail("依据", payloadText(payload, "evidence")),
+        ]),
+      };
+    }
+    case "community_post": {
+      const categoryLabels: Record<string, string> = {
+        avoid_trap: "发布避坑帖",
+        recommend_wlb: "发布双休推荐帖",
+        ask_intel: "发布求证帖",
+      };
+      return {
+        actor: payloadText(payload, "authorAlias") || actor,
+        action: categoryLabels[payloadText(payload, "category")] ?? "发布讨论",
+        company: payloadText(payload, "targetCompany") || "未指定企业",
+        typeLabel: "讨论内容",
+        details: compactDetails([
+          detail("身份", payloadText(payload, "authorRole")),
+          detail("标题", payloadText(payload, "title")),
+          detail("内容", payloadText(payload, "content")),
+          detail("证据标记", payloadText(payload, "evidenceBadge")),
+        ]),
+      };
+    }
+    case "community_reply":
+      return {
+        actor: payloadText(payload, "authorAlias") || actor,
+        action: "回复讨论",
+        company: `讨论 #${payloadText(payload, "postId") || row.target_key}`,
+        typeLabel: "讨论回复",
+        details: compactDetails([detail("回复内容", payloadText(payload, "content"))]),
+      };
+    case "community_vote":
+      return {
+        actor,
+        action: "点赞讨论",
+        company: `讨论 #${payloadText(payload, "postId") || row.target_key}`,
+        typeLabel: "讨论点赞",
+        details: [],
+      };
+  }
+}
 
 export async function enqueueModeration(
   context: Context<AppEnv>,
@@ -92,12 +269,15 @@ export async function enqueueModeration(
 export async function listModerationQueue(
   db: D1Database,
   status: ModerationStatus,
-): Promise<Array<Omit<ModerationRow, "submitter_hash" | "payload_json"> & { payload: unknown }>> {
+): Promise<Array<Omit<ModerationRow, "submitter_hash" | "payload_json"> & {
+  payload: unknown;
+  presentation: ModerationPresentation;
+}>> {
   const result = await db.prepare(
-    "SELECT id, submission_type, target_key, payload_json, status, reviewer_note, published_id, created_at, reviewed_at FROM moderation_queue WHERE status = ? ORDER BY created_at ASC LIMIT 100",
+    "SELECT id, submission_type, target_key, payload_json, submitter_hash, status, reviewer_note, published_id, created_at, reviewed_at FROM moderation_queue WHERE status = ? ORDER BY created_at ASC LIMIT 100",
   )
     .bind(status)
-    .all<Omit<ModerationRow, "submitter_hash">>();
+    .all<ModerationRow>();
 
   return result.results.map((row) => {
     let payload: unknown = null;
@@ -106,8 +286,9 @@ export async function listModerationQueue(
     } catch {
       payload = { error: "Stored payload is invalid JSON." };
     }
-    const { payload_json: _payloadJson, ...publicRow } = row;
-    return { ...publicRow, payload };
+    const presentation = moderationPresentation(row, payload);
+    const { payload_json: _payloadJson, submitter_hash: _submitterHash, ...publicRow } = row;
+    return { ...publicRow, payload, presentation };
   });
 }
 
@@ -138,31 +319,42 @@ function publicationStatements(
     case "employee_report": {
       const companyId = stringField(payload, "companyId", 1, 80);
       const role = stringField(payload, "role", 1, 60);
-      const weekendRating = integerField(payload, "weekendRating", 0, 100);
-      const offWorkTime = stringField(payload, "offWorkTime", 5, 5);
-      if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(offWorkTime)) {
-        throw new ApiError(409, "conflict", "Stored off-work time is invalid.");
+      const location = stringField(payload, "location", 1, 80);
+      const employmentStatus = enumField(payload, "employmentStatus", ["current", "recent_former"] as const);
+      const observedWeeks = integerField(payload, "observedWeeks", 1, 8);
+      const doubleRestWeeks = integerField(payload, "doubleRestWeeks", 0, 8);
+      if (doubleRestWeeks > observedWeeks) {
+        throw new ApiError(409, "conflict", "Stored double-rest weeks exceed observed weeks.");
       }
+      const weeklyHours = integerField(payload, "weeklyHours", 0, 100);
+      const restDayInterruptions = integerField(payload, "restDayInterruptions", 0, 30);
       const statutoryPay = booleanField(payload, "statutoryPay");
       const comment = stringField(payload, "comment", 0, 1000, true);
+      const weekendRating = Math.round((doubleRestWeeks / observedWeeks) * 100);
       return [
         db.prepare(
-          "INSERT INTO employee_reports (id, company_id, role, weekend_rating, off_work_time, statutory_pay, comment, reporter_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+          "INSERT INTO employee_reports (id, company_id, role, weekend_rating, off_work_time, statutory_pay, comment, reporter_hash, location, employment_status, observed_weeks, double_rest_weeks, weekly_hours, rest_day_interruptions, metric_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2)",
         ).bind(
           publishedId,
           companyId,
           role,
           weekendRating,
-          offWorkTime,
+          "00:00",
           statutoryPay ? 1 : 0,
           comment,
           row.submitter_hash,
+          location,
+          employmentStatus,
+          observedWeeks,
+          doubleRestWeeks,
+          weeklyHours,
+          restDayInterruptions,
         ),
       ];
     }
     case "purchase_pledge": {
       const companyId = stringField(payload, "companyId", 1, 80);
-      const amountCents = integerField(payload, "amountCents", 1, 1_000_000);
+      const amountCents = purchaseAmountCents(payload.amountCents, true);
       const pledgeDay = stringField(payload, "pledgeDay", 10, 10);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(pledgeDay)) {
         throw new ApiError(409, "conflict", "Stored pledge date is invalid.");

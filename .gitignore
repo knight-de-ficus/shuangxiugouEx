@@ -9,3 +9,7 @@ dist/
 .DS_Store
 Thumbs.db
 
+outputs/
+migrations/
+backups/
+.codex-tmp

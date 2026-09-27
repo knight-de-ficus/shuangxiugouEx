@@ -12,5 +12,7 @@ export const securityHeaders: MiddlewareHandler<AppEnv> = async (context, next) 
     context.header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'");
   }
   context.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
-  context.header("Cache-Control", "no-store");
+  if (!context.res.headers.has("Cache-Control")) {
+    context.header("Cache-Control", "no-store");
+  }
 };

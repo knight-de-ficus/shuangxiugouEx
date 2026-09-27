@@ -1,7 +1,22 @@
 import React, { useRef, useState } from 'react';
 import { toPng } from 'html-to-image';
-import { Download, Copy, Check, Sparkles, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { Download, Copy, Check, Sparkles, ShieldCheck } from 'lucide-react';
 import type { BrandItem } from '../types';
+
+const MIN_PURCHASE_AMOUNT = 1;
+const MAX_PURCHASE_AMOUNT = 1_000_000;
+
+function validateAmountInput(value: string): string | null {
+  const normalized = value.trim();
+  if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) {
+    return '请输入有效金额，最多保留两位小数。';
+  }
+  const parsed = Number(normalized);
+  if (parsed < MIN_PURCHASE_AMOUNT || parsed > MAX_PURCHASE_AMOUNT) {
+    return '金额需在 1 元到 1,000,000 元之间。';
+  }
+  return null;
+}
 
 interface ReceiptCardProps {
   brand: BrandItem;
@@ -20,7 +35,12 @@ export const ReceiptModal: React.FC<ReceiptCardProps> = ({
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [customAmount, setCustomAmount] = useState(amount);
+  const [amountInput, setAmountInput] = useState(String(amount));
+  const amountError = validateAmountInput(amountInput);
+  const customAmount = amountError ? 0 : Number(amountInput);
+  const amountLabel = amountError
+    ? amountInput || '—'
+    : customAmount.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
 
   const ticketNo = `WLB-${new Date().getTime().toString().slice(-8)}`;
   const dateStr = new Date().toLocaleDateString('zh-CN', {
@@ -30,7 +50,8 @@ export const ReceiptModal: React.FC<ReceiptCardProps> = ({
   });
 
   const handleCopyText = () => {
-    const text = `【双休购 · 反向考核小票】\n凭证编号：${ticketNo}\n考核目标：${brand.name}\n企业评级：${brand.tier} 级 (${brand.weekendPolicyLabel})\n已转移/支持消费：¥${customAmount}\n“老板考核你的KPI，你的钱包考核老板的良心”\n数据查验来自开源双休购`;
+    if (amountError) return;
+    const text = `【双休购 · 红榜消费支持凭据】\n凭证编号：${ticketNo}\n支持对象：${brand.name}\n入选状态：${brand.admission === 'employee_verified' ? '员工执行已核验' : '公开资料试运行入选'}\n结论范围：${brand.verifiedScope}\n消费支持：¥${amountLabel}\n消费金额仅表达支持，不参与企业准入和双休兑现率计算。`;
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -57,8 +78,6 @@ export const ReceiptModal: React.FC<ReceiptCardProps> = ({
     }
   };
 
-  const isBoycott = brand.tier === 'C';
-
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
       <div className="max-w-sm w-full my-auto space-y-4">
@@ -66,7 +85,7 @@ export const ReceiptModal: React.FC<ReceiptCardProps> = ({
         <div className="flex items-center justify-between text-white/80 px-1">
           <div className="flex items-center gap-1.5 text-xs font-semibold tracking-wider text-red-400">
             <Sparkles className="w-3.5 h-3.5" />
-            打工人反向考核凭据
+            红榜消费支持凭据
           </div>
           <button
             onClick={onClose}
@@ -85,29 +104,22 @@ export const ReceiptModal: React.FC<ReceiptCardProps> = ({
             backgroundSize: '8px 8px',
           }}
         >
-          {/* 红色印章 / 绿色认证盖戳 */}
+          {/* 红榜状态盖戳 */}
           <div className="absolute right-4 top-20 pointer-events-none opacity-85 rotate-[-14deg]">
-            {isBoycott ? (
-              <div className="border-2 border-rose-600 text-rose-600 rounded-lg px-2.5 py-1 text-[11px] font-black tracking-widest uppercase flex items-center gap-1 shadow-sm">
-                <ShieldAlert className="w-3.5 h-3.5" />
-                <span>违规避雷</span>
-              </div>
-            ) : (
-              <div className="border-2 border-red-600 text-red-600 rounded-lg px-2.5 py-1 text-[11px] font-black tracking-widest uppercase flex items-center gap-1 shadow-sm">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>良心认证</span>
-              </div>
-            )}
+            <div className="border-2 border-red-600 text-red-600 rounded-lg px-2.5 py-1 text-[11px] font-black tracking-widest uppercase flex items-center gap-1 shadow-sm">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>红榜在列</span>
+            </div>
           </div>
 
           {/* 抬头 */}
           <div className="text-center pb-4 border-b border-dashed border-slate-300 space-y-1">
             <div className="text-base font-black tracking-tighter text-slate-950 flex items-center justify-center gap-2">
               <img src="/logo.svg" alt="双休购购物车 Logo" className="h-7 w-7" />
-              <span>双休购 · 反向考核小票</span>
+              <span>双休购 · 消费支持凭据</span>
             </div>
             <div className="text-[10px] text-slate-500 font-sans tracking-tight">
-              SHUANGXIUGOU CONSUMER AUDIT RECEIPT
+              SHUANGXIUGOU REDLIST SUPPORT RECEIPT
             </div>
             <div className="text-[10px] text-slate-400 font-mono pt-1">
               NO. {ticketNo} · {dateStr}
@@ -117,11 +129,11 @@ export const ReceiptModal: React.FC<ReceiptCardProps> = ({
           {/* 考核主体信息 */}
           <div className="py-4 border-b border-dashed border-slate-300 space-y-2 text-xs">
             <div className="flex justify-between items-start">
-              <span className="text-slate-500">考核执行官:</span>
-              <span className="font-bold text-slate-800">清醒打工人 #7709</span>
+              <span className="text-slate-500">记录方式:</span>
+              <span className="font-bold text-slate-800">社区消费支持</span>
             </div>
             <div className="flex justify-between items-start gap-2">
-              <span className="text-slate-500 whitespace-nowrap">考核品牌:</span>
+              <span className="text-slate-500 whitespace-nowrap">支持对象:</span>
               <span className="font-bold text-slate-900 text-right truncate max-w-[180px]">
                 {brand.name}
               </span>
@@ -133,19 +145,9 @@ export const ReceiptModal: React.FC<ReceiptCardProps> = ({
               </span>
             </div>
             <div className="flex justify-between items-center pt-1">
-              <span className="text-slate-500">工时健康评级:</span>
-              <span
-                className={`font-black px-1.5 py-0.5 rounded text-xs ${
-                  brand.tier === 'S'
-                    ? 'bg-red-100 text-red-800'
-                    : brand.tier === 'A'
-                    ? 'bg-green-100 text-green-800'
-                    : brand.tier === 'B'
-                    ? 'bg-amber-100 text-amber-800'
-                    : 'bg-rose-100 text-rose-800'
-                }`}
-              >
-                {brand.tier} 级 · {brand.weekendPolicyLabel}
+              <span className="text-slate-500">入选状态:</span>
+              <span className="font-black px-1.5 py-0.5 rounded text-xs bg-red-100 text-red-800">
+                {brand.admission === 'employee_verified' ? '员工执行已核验' : '公开资料试运行'}
               </span>
             </div>
           </div>
@@ -154,29 +156,23 @@ export const ReceiptModal: React.FC<ReceiptCardProps> = ({
           <div className="py-4 border-b border-dashed border-slate-300 space-y-2 text-xs">
             <div className="flex justify-between items-baseline">
               <span className="text-slate-600 font-semibold">
-                {isBoycott ? '转移撤销消费金额:' : '注入良心企业预算:'}
+                消费支持金额:
               </span>
-              <span
-                className={`text-xl font-black font-mono ${
-                  isBoycott ? 'text-rose-600' : 'text-red-700'
-                }`}
-              >
-                {isBoycott ? '-' : '+'} ¥ {customAmount.toLocaleString()}
+              <span className="text-xl font-black font-mono text-red-700">
+                + ¥ {amountLabel}
               </span>
             </div>
             <div className="text-[10px] text-slate-500 leading-normal font-sans">
-              {isBoycott
-                ? '已从单休/严重违规企业剥离该消费额，并将订单优先转移给合规双休平替。'
-                : '用每一次下单，奖励真正实行周末双休、尊重员工休息权的良心品牌。'}
+              金额仅记录消费者的支持意愿，不参与红榜准入、可信度或双休兑现率计算。
             </div>
           </div>
 
           {/* 态度标语与条形码 */}
           <div className="pt-4 text-center space-y-3">
             <div className="text-[11px] text-slate-700 font-sans italic font-medium leading-relaxed px-2">
-              “老板考核你的 KPI，
+              “让每一次消费选择，
               <br />
-              你的钱包考核老板的良心。”
+              支持更尊重休息的工作方式。”
             </div>
 
             {/* 仿真条形码 */}
@@ -202,17 +198,29 @@ export const ReceiptModal: React.FC<ReceiptCardProps> = ({
         {/* 交互调整与按钮区 */}
         <div className="bg-white/95 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-xl space-y-3">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-slate-500 font-medium">本次投票消费金额:</span>
+            <span className="text-slate-500 font-medium">本次消费支持金额:</span>
             <div className="flex items-center gap-1.5">
               <span className="text-slate-400">¥</span>
               <input
                 type="number"
-                value={customAmount}
-                onChange={(e) => setCustomAmount(Math.max(1, Number(e.target.value)))}
+                min={MIN_PURCHASE_AMOUNT}
+                max={MAX_PURCHASE_AMOUNT}
+                step="0.01"
+                inputMode="decimal"
+                value={amountInput}
+                onChange={(e) => setAmountInput(e.target.value)}
+                aria-invalid={Boolean(amountError)}
+                aria-describedby="purchase-amount-error"
                 className="w-24 px-2 py-1 bg-slate-100 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-800 text-right focus:outline-none focus:ring-1 focus:ring-red-500"
               />
             </div>
           </div>
+
+          {amountError && (
+            <p id="purchase-amount-error" className="text-[11px] text-rose-700" role="alert">
+              {amountError}
+            </p>
+          )}
 
           <div className="grid grid-cols-2 gap-2 pt-1">
             <button
@@ -242,11 +250,11 @@ export const ReceiptModal: React.FC<ReceiptCardProps> = ({
                 setSaving(false);
               }
             }}
-            disabled={saving}
+            disabled={saving || Boolean(amountError)}
             className="w-full py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-red-600/20"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>{saving ? '提交审核中…' : '提交打卡审核'}</span>
+            <span>{saving ? '提交审核中…' : '登记消费支持'}</span>
           </button>
         </div>
       </div>

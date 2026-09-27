@@ -8,6 +8,7 @@ import {
 } from "../services/community-validation";
 import { enforceRateLimit } from "../services/security-controls";
 import { enqueueModeration } from "../services/moderation";
+import { publishCommunityVote } from "../services/direct-engagement";
 import type { AppEnv } from "../types/bindings";
 
 type PostRow = {
@@ -140,6 +141,6 @@ communityRoutes.post("/posts/:id/vote", async (context) => {
   if (!(await context.env.DB.prepare("SELECT id FROM community_posts WHERE id = ?").bind(postId).first())) {
     throw new ApiError(404, "not_found", "Post not found.");
   }
-  const submission = await enqueueModeration(context, "community_vote", postId, { postId });
-  return context.json({ submission }, 202);
+  const submission = await publishCommunityVote(context, postId);
+  return context.json({ submission }, 201);
 });
