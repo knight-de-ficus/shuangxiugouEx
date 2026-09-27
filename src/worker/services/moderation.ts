@@ -70,6 +70,7 @@ function payloadNumber(payload: Record<string, unknown>, field: string): number 
 }
 
 function companyLabel(companyId: string): string {
+  if (companyId === "default") return "通用消费支持（default）";
   return companyNames.get(companyId) ?? (companyId ? `未知企业（${companyId}）` : "未指定企业");
 }
 

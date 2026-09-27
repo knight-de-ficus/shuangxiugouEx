@@ -3,6 +3,9 @@ import { toPng } from 'html-to-image';
 import { Download, Copy, Check, Sparkles, ShieldCheck } from 'lucide-react';
 import type { BrandItem } from '../types';
 
+export type ReceiptTarget = Pick<BrandItem, 'id' | 'name' | 'companyName'> &
+  Partial<Pick<BrandItem, 'admission' | 'verifiedScope'>>;
+
 const MIN_PURCHASE_AMOUNT = 1;
 const MAX_PURCHASE_AMOUNT = 1_000_000;
 
@@ -19,7 +22,7 @@ function validateAmountInput(value: string): string | null {
 }
 
 interface ReceiptCardProps {
-  brand: BrandItem;
+  brand: ReceiptTarget;
   amount: number;
   onClose: () => void;
   onComplete: (amount: number) => Promise<void>;
@@ -35,6 +38,7 @@ export const ReceiptModal: React.FC<ReceiptCardProps> = ({
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const isDefault = brand.id === 'default';
   const [amountInput, setAmountInput] = useState(String(amount));
   const amountError = validateAmountInput(amountInput);
   const customAmount = amountError ? 0 : Number(amountInput);
@@ -51,7 +55,9 @@ export const ReceiptModal: React.FC<ReceiptCardProps> = ({
 
   const handleCopyText = () => {
     if (amountError) return;
-    const text = `【双休购 · 红榜消费支持凭据】\n凭证编号：${ticketNo}\n支持对象：${brand.name}\n入选状态：${brand.admission === 'employee_verified' ? '员工执行已核验' : '公开资料试运行入选'}\n结论范围：${brand.verifiedScope}\n消费支持：¥${amountLabel}\n消费金额仅表达支持，不参与企业准入和双休兑现率计算。`;
+    const text = isDefault
+      ? `【双休购 · 消费支持凭据】\n凭证编号：${ticketNo}\n支持对象：default\n消费支持：¥${amountLabel}\n通用消费支持记录，不对应具体企业。`
+      : `【双休购 · 红榜消费支持凭据】\n凭证编号：${ticketNo}\n支持对象：${brand.name}\n入选状态：${brand.admission === 'employee_verified' ? '员工执行已核验' : '公开资料试运行入选'}\n结论范围：${brand.verifiedScope}\n消费支持：¥${amountLabel}\n消费金额仅表达支持，不参与企业准入和双休兑现率计算。`;
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -85,7 +91,7 @@ export const ReceiptModal: React.FC<ReceiptCardProps> = ({
         <div className="flex items-center justify-between text-white/80 px-1">
           <div className="flex items-center gap-1.5 text-xs font-semibold tracking-wider text-red-400">
             <Sparkles className="w-3.5 h-3.5" />
-            红榜消费支持凭据
+            {isDefault ? '消费支持凭据' : '红榜消费支持凭据'}
           </div>
           <button
             onClick={onClose}
@@ -105,12 +111,12 @@ export const ReceiptModal: React.FC<ReceiptCardProps> = ({
           }}
         >
           {/* 红榜状态盖戳 */}
-          <div className="absolute right-4 top-20 pointer-events-none opacity-85 rotate-[-14deg]">
+          {!isDefault && <div className="absolute right-4 top-20 pointer-events-none opacity-85 rotate-[-14deg]">
             <div className="border-2 border-red-600 text-red-600 rounded-lg px-2.5 py-1 text-[11px] font-black tracking-widest uppercase flex items-center gap-1 shadow-sm">
               <ShieldCheck className="w-3.5 h-3.5" />
               <span>红榜在列</span>
             </div>
-          </div>
+          </div>}
 
           {/* 抬头 */}
           <div className="text-center pb-4 border-b border-dashed border-slate-300 space-y-1">
@@ -119,7 +125,7 @@ export const ReceiptModal: React.FC<ReceiptCardProps> = ({
               <span>双休购 · 消费支持凭据</span>
             </div>
             <div className="text-[10px] text-slate-500 font-sans tracking-tight">
-              SHUANGXIUGOU REDLIST SUPPORT RECEIPT
+              {isDefault ? 'SHUANGXIUGOU SUPPORT RECEIPT' : 'SHUANGXIUGOU REDLIST SUPPORT RECEIPT'}
             </div>
             <div className="text-[10px] text-slate-400 font-mono pt-1">
               NO. {ticketNo} · {dateStr}
@@ -138,18 +144,18 @@ export const ReceiptModal: React.FC<ReceiptCardProps> = ({
                 {brand.name}
               </span>
             </div>
-            <div className="flex justify-between items-start gap-2">
+            {!isDefault && <div className="flex justify-between items-start gap-2">
               <span className="text-slate-500 whitespace-nowrap">所属企业:</span>
               <span className="text-[11px] text-slate-600 text-right truncate max-w-[180px]">
                 {brand.companyName}
               </span>
-            </div>
-            <div className="flex justify-between items-center pt-1">
+            </div>}
+            {!isDefault && <div className="flex justify-between items-center pt-1">
               <span className="text-slate-500">入选状态:</span>
               <span className="font-black px-1.5 py-0.5 rounded text-xs bg-red-100 text-red-800">
                 {brand.admission === 'employee_verified' ? '员工执行已核验' : '公开资料试运行'}
               </span>
-            </div>
+            </div>}
           </div>
 
           {/* 金额核算区 */}

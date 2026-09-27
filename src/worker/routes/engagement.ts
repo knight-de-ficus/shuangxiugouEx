@@ -63,7 +63,8 @@ engagementRoutes.post("/brands/:id/employee-reports", async (context) => {
 
 engagementRoutes.post("/brands/:id/purchase-pledges", async (context) => {
   const id = companyId(context.req.param("id"));
-  await ensureCompanyExists(context.env.DB, id);
+  // The banner records general support under a virtual target, not a catalog company.
+  if (id !== "default") await ensureCompanyExists(context.env.DB, id);
   await enforceRateLimit(context, "purchase-pledge", 10, 86400);
   const body = requireRecord(await parseJsonBody(context.req.raw));
   const amountCents = purchaseAmountCents(body.amountCents);
